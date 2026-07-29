@@ -18,13 +18,13 @@
 #   Section  -> ## titulo
 #   Panel    -> ### titulo
 #   RuleList -> lista numerada
-#   Callout  -> ::: Tip / Note / Warning / Danger, los bloques de osu-wiki
+#   Callout  -> ::: alert-tip / alert-note / alert-warning / alert-caution
 #   Prose    -> parrafos
 #   SECTIONS -> ## heading + el body, que ya viene escrito en markdown
 #   FAQ      -> ## pregunta + respuesta
 #   GROUPS   -> ## categoria + una linea por feature
 #   *_COMMANDS -> tabla de comandos
-#   HubCard  -> lista de links del indice
+#   HubCard  -> un titulo con link por pagina
 #   Toc      -> se descarta, osu-web arma su propio indice
 #
 # Uso:
@@ -37,7 +37,9 @@ import sys
 
 # Nombre del archivo tsx (sin Wiki ni Page) -> pagina en la url de osu-web.
 PAGES = {
-    'Hub': 'Torii',
+    # osu-web redirige /wiki a /wiki/<idioma>/Main_page, asi que el indice
+    # tiene que llamarse asi o la wiki entra por un 404.
+    'Hub': 'Main_page',
     'Rules': 'Rules',
     'Faq': 'FAQ',
     'Features': 'Features',
@@ -58,12 +60,17 @@ WIKI_PATHS = {
     'faq': 'FAQ',
 }
 
-# tone del Callout -> bloque de osu-wiki
+# tone del Callout -> bloque de osu-wiki.
+#
+# Los nombres NO son libres. El parser toma lo que sigue a los dos puntos, lo
+# pasa a minusculas, y si no esta en style_block_allowed_classes (OsuMarkdown,
+# linea 99) tira el envoltorio y deja el texto suelto. O sea que un ::: Tip
+# renderiza igual que si no hubiera bloque, sin avisar.
 TONES = {
-    'good': 'Tip',
-    'info': 'Note',
-    'warn': 'Warning',
-    'danger': 'Danger',
+    'good': 'alert-tip',
+    'info': 'alert-note',
+    'warn': 'alert-warning',
+    'danger': 'alert-caution',
 }
 
 COMMAND_TITLES = {
@@ -108,13 +115,28 @@ def collapse(text: str) -> str:
     return '\n\n'.join(p for p in paras if p)
 
 
-def wiki_link(target: str) -> str:
+# Rutas del spa que en osu-web se llaman de otra forma o directamente no
+# existen. Sin esto quedan links a paginas que dan 404.
+SPA_ROUTES = {
+    '/how-to-join': '/home/download',
+}
+
+
+def wiki_link(target: str, source: str = '') -> str:
+    # Los HubCard pueden apuntar a una constante en vez de a una cadena
+    # (to={DISCORD_INVITE}). Se resuelve contra el archivo o el link sale con el
+    # nombre de la variable adentro de la url.
+    if source and re.fullmatch(r'[A-Z_]+', target):
+        const = re.search(r'const ' + target + r'\s*=\s*"([^"]+)"', source)
+        if const is not None:
+            return const.group(1)
+
     if target.startswith('/wiki/'):
         slug = target[len('/wiki/'):]
 
         return '/wiki/' + WIKI_PATHS.get(slug, slug.capitalize())
 
-    return target
+    return SPA_ROUTES.get(target, target)
 
 
 def template_sections(source: str) -> list:
@@ -178,12 +200,18 @@ def command_table(source: str, name: str) -> str:
 
 
 def hub_cards(source: str) -> list:
-    """El indice: los tiles pasan a ser una lista de links."""
-    rows = []
-    for m in re.finditer(r'<HubCard\s+to=\{?"?([^"}\s]+)"?\}?[^>]*title="([^"]+)"', source):
-        rows.append('- [{}]({})'.format(m.group(2), wiki_link(m.group(1))))
+    """El indice: los tiles pasan a ser un titulo con link por pagina.
 
-    return ['\n'.join(rows)] if rows else []
+    Nada de html crudo. El preset de la wiki no lo deja pasar (html_input no
+    esta en allow), asi que probe con los div de paneles de osu-wiki y
+    desaparecen sin dejar rastro: solo ensucian el markdown.
+
+    Titulos y no vinetas porque osu-web arma el indice lateral con los
+    encabezados, asi que de paso el indice de la wiki tiene su propio indice."""
+    cards = re.findall(r'<HubCard\s+to=\{?"?([^"}\s]+)"?\}?[^>]*title="([^"]+)"', source)
+
+    return ['\n\n'.join('## [{}]({})'.format(title, wiki_link(target, source))
+                        for target, title in cards)] if cards else []
 
 
 def components(source: str) -> list:
@@ -216,9 +244,11 @@ def components(source: str) -> list:
             title = re.search(r'title="([^"]+)"', m.group(3))
             end = source.find('</Callout>', pos)
             inner = collapse(strip_jsx(source[pos:end]))
-            head = '**{}** '.format(title.group(1)) if title else ''
+            # El titulo va en su propia linea, como los avisos de osu-web: el
+            # preset de la wiki convierte el salto simple en un <br>.
+            head = '**{}**{}'.format(title.group(1), chr(10)) if title else ''
             out.append('::: {}\n{}{}\n:::'.format(
-                TONES.get(tone.group(1) if tone else 'info', 'Note'), head, inner))
+                TONES.get(tone.group(1) if tone else 'info', 'alert-note'), head, inner))
             pos = end
         elif m.group(4):
             out.append(collapse(strip_jsx(m.group(4))))
