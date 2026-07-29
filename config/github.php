@@ -39,8 +39,21 @@ return [
     'connections' => [
 
         'main' => [
-            'token' => env('GITHUB_TOKEN'),
-            'method' => 'token',
+            // torii: sin token NO se autentica, en vez de autenticarse con la
+            // cadena vacia.
+            //
+            // compose pasa GITHUB_TOKEN: "${GITHUB_TOKEN}", que sin la variable
+            // seteada llega como "" y no como ausente. Con method => 'token' y
+            // token vacio, el cliente manda un Authorization en blanco y github
+            // contesta 401 Bad credentials. Eso dejaba la wiki entera en 404,
+            // porque el sync se come la excepcion y el indice queda en cero
+            // documentos, sin decir nada.
+            //
+            // El repositorio de la wiki de Torii es publico, asi que sin
+            // autenticar se lee igual. El limite pasa de 5000 a 60 pedidos por
+            // hora, que para ocho paginas que se revisan cada cinco horas sobra.
+            'token' => presence(env('GITHUB_TOKEN')),
+            'method' => presence(env('GITHUB_TOKEN')) === null ? 'none' : 'token',
             // 'backoff' => false,
             // 'cache' => false,
             // 'version' => 'v3',
