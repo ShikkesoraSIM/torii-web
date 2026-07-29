@@ -203,19 +203,60 @@ $V['phpbb_users'] = [
             . ' + (JSON_CONTAINS(u.playstyle, \'"tablet"\') * 4)'
             . ' + (JSON_CONTAINS(u.playstyle, \'"touch"\') * 8), 0)',
     ],
+    // Lo que es de Torii y osu-web no tiene columna donde ponerlo. Al llegar
+    // como atributo del modelo, cada una necesita su linea en el match de
+    // User::getAttribute o el perfil entero se cae con UnhandledMatchError.
+    'extra' => [
+        'torii_points' => 'COALESCE(u.points, 0)',
+        'torii_aura' => 'u.equipped_aura',
+        'torii_name_colour' => 'u.equipped_name_colour',
+        'torii_supporter_months' => 'COALESCE(u.total_supporter_months, 0)',
+        'torii_is_online' => 'COALESCE(u.is_online, 0)',
+    ],
 ];
 
-// Los grupos salen de las banderas de la fila del usuario. Va como un join
-// contra phpbb_groups, que tiene doce filas, en vez de una union de seis
-// selects: la union obliga a MySQL a materializar la vista entera.
+// Los grupos de un jugador salen de tres lados y ninguno es una tabla de
+// pertenencia: las banderas de su fila, la lista torii_titles, y si tiene
+// donacion viva. Es exactamente lo que hace build_groups() en g0v0
+// (app/models/torii_groups.py), replicado aca para que el badge de la web y el
+// del juego digan siempre lo mismo.
+//
+// Hay dos catalogos y los dos hacen falta:
+//
+//   - los grupos propios de osu-web (admin, gmt, nat, bng, bot, default) NO se
+//     ven en ningun lado, porque tienen display_order en nulo y sin eso
+//     Group::hasBadge() da false. Estan para los PERMISOS: isAdmin(), isGMT() y
+//     compania miran la pertenencia a estos y son las que abren las
+//     herramientas de moderacion.
+//   - los de Torii (torii-*, ids 1001 a 1031, los siembra torii-groups.sql) son
+//     los que se DIBUJAN, con el color y la sigla que ya usa el cliente.
+//
+// Asi un admin queda en 'admin' (puede moderar) y en 'torii-admin' (se le ve el
+// badge rojo), sin que aparezca dos veces.
+//
+// El ultimo OR es el que hace que agregar un grupo nuevo no toque esta vista:
+// para todo torii-X la pertenencia es "X esta en torii_titles". Las lineas de
+// arriba son las excepciones, o sea los que ademas se ganan por bandera.
+//
+// Va como join contra phpbb_groups, que tiene veintisiete filas, y no como una
+// union de selects: la union obliga a MySQL a materializar la vista entera
+// antes de filtrar por usuario.
 $V['phpbb_user_group'] = [
     'from' => "$src.lazer_users u JOIN $dst.phpbb_groups g ON ("
         . "g.identifier = 'default'"
-        . " OR (g.identifier = 'admin' AND u.is_admin = 1)"
-        . " OR (g.identifier = 'gmt'   AND u.is_gmt = 1)"
+        . " OR (g.identifier IN ('admin','torii-admin') AND u.is_admin = 1)"
+        . " OR (g.identifier IN ('gmt','torii-mod')     AND u.is_gmt = 1)"
         . " OR (g.identifier = 'nat'   AND u.is_qat = 1)"
         . " OR (g.identifier = 'bng'   AND u.is_bng = 1)"
-        . " OR (g.identifier = 'bot'   AND u.is_bot = 1))",
+        . " OR (g.identifier = 'bot'   AND u.is_bot = 1)"
+        . " OR (g.identifier = 'torii-qat'    AND u.is_qat = 1)"
+        . " OR (g.identifier = 'torii-pooler' AND u.is_bng = 1)"
+        // La bandera is_supporter puede quedar vieja: no hay nada que la apague
+        // cuando se vence la donacion. La ventana de donacion es la fuente.
+        . " OR (g.identifier = 'torii-supporter' AND u.donor_end_at > NOW())"
+        . " OR (g.identifier = 'torii-donator'   AND u.has_supported = 1)"
+        . " OR (g.identifier LIKE 'torii-%'"
+        . "     AND JSON_CONTAINS(u.torii_titles, JSON_QUOTE(SUBSTRING(g.identifier, 7))) = 1))",
     'cols' => [
         'group_id' => 'g.group_id',
         'user_id' => 'u.id',
@@ -838,6 +879,12 @@ foreach ($V as $table => $def) {
         continue;
     }
 
+    // Columnas que osu-web no tiene y Torii si. Se agregan al final en vez de
+    // dar error: son datos propios (puntos, aura, color de nombre) que el fork
+    // muestra en sus propias pantallas. Eloquent hace SELECT * asi que llegan
+    // al modelo como un atributo mas, pero ojo: User::getAttribute es un match
+    // sin default, o sea que cada una necesita su linea ahi.
+    $extra = $def['extra'] ?? [];
     $known = $def['cols'];
     $unknown = array_diff(array_keys($known), array_column($cols, 'COLUMN_NAME'));
 
@@ -857,6 +904,10 @@ foreach ($V as $table => $def) {
             $filled[] = $name;
         }
 
+        $select[] = "    $expr AS `$name`";
+    }
+
+    foreach ($extra as $name => $expr) {
         $select[] = "    $expr AS `$name`";
     }
 

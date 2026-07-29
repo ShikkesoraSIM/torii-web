@@ -94,7 +94,12 @@ SELECT
     NULL AS `remember_token`,
     NULL AS `lock_email_changes`,
     CASE WHEN CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(u.cover, '$.url')) LIKE 'https://lazer-api.shikkesora.com/file/cover/%' THEN SUBSTRING_INDEX(JSON_UNQUOTE(JSON_EXTRACT(u.cover, '$.url')), '/', -1) ELSE NULL END IS NULL THEN 1 ELSE NULL END AS `cover_preset_id`,
-    CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(u.cover, '$.url')) LIKE 'https://lazer-api.shikkesora.com/file/cover/%' THEN SUBSTRING_INDEX(JSON_UNQUOTE(JSON_EXTRACT(u.cover, '$.url')), '/', -1) ELSE NULL END AS `custom_cover_filename`
+    CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(u.cover, '$.url')) LIKE 'https://lazer-api.shikkesora.com/file/cover/%' THEN SUBSTRING_INDEX(JSON_UNQUOTE(JSON_EXTRACT(u.cover, '$.url')), '/', -1) ELSE NULL END AS `custom_cover_filename`,
+    COALESCE(u.points, 0) AS `torii_points`,
+    u.equipped_aura AS `torii_aura`,
+    u.equipped_name_colour AS `torii_name_colour`,
+    COALESCE(u.total_supporter_months, 0) AS `torii_supporter_months`,
+    COALESCE(u.is_online, 0) AS `torii_is_online`
 FROM torii.lazer_users u
 WHERE u.username IS NOT NULL AND u.username <> ''
 ;
@@ -109,7 +114,7 @@ SELECT
     0 AS `group_leader`,
     0 AS `user_pending`,
     NULL AS `playmodes`
-FROM torii.lazer_users u JOIN osu.phpbb_groups g ON (g.identifier = 'default' OR (g.identifier = 'admin' AND u.is_admin = 1) OR (g.identifier = 'gmt'   AND u.is_gmt = 1) OR (g.identifier = 'nat'   AND u.is_qat = 1) OR (g.identifier = 'bng'   AND u.is_bng = 1) OR (g.identifier = 'bot'   AND u.is_bot = 1))
+FROM torii.lazer_users u JOIN osu.phpbb_groups g ON (g.identifier = 'default' OR (g.identifier IN ('admin','torii-admin') AND u.is_admin = 1) OR (g.identifier IN ('gmt','torii-mod')     AND u.is_gmt = 1) OR (g.identifier = 'nat'   AND u.is_qat = 1) OR (g.identifier = 'bng'   AND u.is_bng = 1) OR (g.identifier = 'bot'   AND u.is_bot = 1) OR (g.identifier = 'torii-qat'    AND u.is_qat = 1) OR (g.identifier = 'torii-pooler' AND u.is_bng = 1) OR (g.identifier = 'torii-supporter' AND u.donor_end_at > NOW()) OR (g.identifier = 'torii-donator'   AND u.has_supported = 1) OR (g.identifier LIKE 'torii-%'     AND JSON_CONTAINS(u.torii_titles, JSON_QUOTE(SUBSTRING(g.identifier, 7))) = 1))
 ;
 
 -- ---------------------------------------------------------------------------

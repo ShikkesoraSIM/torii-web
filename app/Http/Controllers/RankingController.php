@@ -41,6 +41,11 @@ class RankingController extends Controller
         'matchmaking',
         'daily_challenge',
         'kudosu',
+        // torii: la moneda del servidor. OJO, url() de abajo es un match SIN
+        // default y nav_links() lo llama para CADA tipo en cada request: sumar
+        // un tipo sin su brazo no rompe esta pagina, rompe el menu de todo el
+        // sitio.
+        'points',
     ];
 
     public function __construct()
@@ -65,6 +70,7 @@ class RankingController extends Controller
                 'type' => $params['type'],
             ]),
             'kudosu' => route('rankings.kudosu'),
+            'points' => route('rankings.points'),
             'matchmaking' => route('rankings.matchmaking', ['mode' => $params['mode'] ?? default_mode()]),
             'playlists' => match ($params['list'] ?? 'seasons') {
                 'charts' => route('rankings', [

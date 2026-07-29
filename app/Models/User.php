@@ -797,6 +797,14 @@ class User extends Model implements AfterCommit, AuthenticatableContract, HasLoc
             'osu_mapperrank',
             'osu_playmode',
             'osu_testversion',
+            // torii: columnas propias que agrega la vista phpbb_users. Este
+            // match no tiene default, asi que sin estas lineas cualquier
+            // pagina que toque el atributo se cae con UnhandledMatchError.
+            'torii_aura',
+            'torii_is_online',
+            'torii_name_colour',
+            'torii_points',
+            'torii_supporter_months',
             'remember_token',
             'support_length',
             'user_actkey',

@@ -68,8 +68,14 @@ return [
         'kudosu' => 'kudosu',
         'matchmaking' => 'ranked play',
         'playlists' => 'playlists',
+        'points' => 'points',
         'team' => 'team',
         'top_plays' => 'top plays',
+    ],
+
+    // torii: la moneda del servidor.
+    'points' => [
+        'balance' => 'Points',
     ],
 
     'seasons' => [
