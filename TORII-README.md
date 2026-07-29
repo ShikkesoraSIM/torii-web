@@ -285,3 +285,107 @@ Los modos propios de Torii (relax, autopilot y los rulesets custom) no tienen
 tabla de stats donde ir, asi que esas estadisticas quedan afuera. Los scores de
 esos modos si entran, porque son plays reales, pero con `ranked = 0` para que no
 ensucien rankings ni el top play de cada perfil.
+
+## La capa de vistas
+
+Lo de arriba describe la proyeccion, que era de una via: se corria a mano y a
+partir de ahi la web mostraba la foto de ese momento. **Eso ya no es asi.**
+
+Las 25 tablas que osu-web comparte con el juego son ahora **vistas** sobre el
+esquema de g0v0, o sea que un score entra a la web en el mismo instante en que
+entra al juego, sin correr nada. `torii-project.sql` y `torii-extras.sql` quedan
+como referencia historica: no producen nada de lo que hay en la base.
+
+### Los archivos
+
+| archivo | que hace |
+| :-- | :-- |
+| `torii-views.php` | genera las vistas. **es el unico que se edita** |
+| `torii-views.sql` | lo que genera. no editar a mano |
+| `torii-views-swap.sql` | mueve las tablas a `osu_bak` y crea el catalogo de paises. una sola vez |
+| `torii-views-revert.sql` | deshace lo anterior |
+| `torii-cache.sql` | crea y llena lo que no puede ser vista. va por cron |
+| `torii-groups.sql` | siembra los quince grupos de Torii en `phpbb_groups` |
+| `torii-userpages.php` | copia la pagina de perfil al foro, que es de donde la lee osu-web |
+| `torii-wiki-convert.py` | pasa la wiki de lazer-web a markdown de osu-wiki |
+| `torii-sync.sh` | copia archivos del repo al contenedor (/app es un volumen) |
+
+### Bring-up desde cero
+
+    # 1. importar las tablas de g0v0 (incluidas las torii_* y las de matchmaking)
+    ssh torii-eu 'docker exec osu_api_mysql mysqldump -uroot -ppassword \
+        --single-transaction --no-tablespaces osu_api <tablas>' > feat.sql
+    docker compose exec -T db sh -c 'mysql -uroot -e "SET FOREIGN_KEY_CHECKS=0; USE torii; SOURCE /tmp/feat.sql;"'
+
+    # 2. el swap, una sola vez
+    mysql < torii-views-swap.sql
+
+    # 3. lo que no puede ser vista, y los grupos
+    mysql < torii-cache.sql
+    mysql < torii-groups.sql
+
+    # 4. generar y crear las vistas. el tercer argumento es de donde leer las
+    #    columnas: la primera vez osu_bak, porque las tablas se acaban de mudar
+    docker compose exec -T php php /tmp/torii-views.php torii osu osu_bak > torii-views.sql
+    mysql < torii-views.sql
+
+    # 5. la pagina de perfil
+    docker compose exec -T php php /tmp/userpages.php
+
+En produccion el esquema origen se llama `osu_api`, no `torii`, y hay que
+setear `TORII_SOURCE_SCHEMA=osu_api`.
+
+### Cuando ppy agrega una columna
+
+Una migracion que hace ALTER sobre una vista se estrella. El camino es:
+
+    mysql < torii-views-revert.sql     # vuelven las tablas
+    php artisan migrate
+    ... php torii-views.php torii osu osu > torii-views.sql
+    mysql < torii-views-swap.sql
+    mysql < torii-views.sql
+
+### Lo que NO es vista, y por que
+
+Los agregados caros: plays por mapa, favoritos, nombres de difficulties, el
+grafico de fails y los primeros puestos. Son cuentas sobre cientos de miles de
+filas que osu-web lee por fila, asi que resolverlas en vivo mata cualquier
+listado. Van a tablas de cache angostas que refresca `torii-cache.sql`, y las
+vistas las traen con un LEFT JOIN por clave primaria. Es lo mismo que hace ppy:
+esas columnas tampoco se calculan en vivo alla.
+
+Lo que si es vista y antes se quedaba viejo: la posicion global y la del pais,
+que ahora salen de una funcion de ventana sobre las stats del modo.
+
+### Escribir
+
+MySQL acepta un DELETE o un UPDATE contra una vista de una sola tabla, pero
+rechaza cualquier columna que sea una expresion, y no tiene triggers INSTEAD OF.
+La traduccion la hace `App\Libraries\Torii\WriteThrough`, enganchado en
+`Model::performInsert`, `performUpdate` y `performDeleteOnModel`. Lo que no esta
+mapeado se descarta con un aviso en el log en vez de tirar la pagina abajo: el
+log dice cual columna falta.
+
+**Cuidado con las vistas borrables.** Un pin de score no es una fila propia en
+Torii, es la columna `pinned_order` del score. Si `score_pins` sale de una sola
+tabla, MySQL la da por borrable y el "despinnear" de osu-web, que es un DELETE,
+borra el SCORE. Por eso la vista tiene un join contra usuarios: hace que MySQL
+rechace el DELETE. Antes de agregar una vista de una sola tabla, preguntarse que
+pasa si osu-web le manda un DELETE.
+
+## Lo que falta
+
+- **La wiki necesita dos pasos manuales:** crear el repositorio en github con lo
+  que hay en `../torii-wiki` y generar un token. Despues, `WIKI_USER`,
+  `WIKI_REPOSITORY`, `WIKI_BRANCH` y `GITHUB_TOKEN` ya estan cableadas en el
+  compose, y solo queda `php artisan es:index-wiki`.
+- **Los scores de relax uno por uno.** El ranking de relax y autopilot esta
+  entero, pero los scores individuales no se muestran: para eso necesitan
+  ruleset_id propio (4 a 7, como en g0v0) y eso arrastra el enum `Ruleset`, los
+  mapas exhaustivos de `score-helper.ts` y `mods.json`, que solo conocen 0 a 3.
+- **Ranked play por pool.** En g0v0 la clave primaria de
+  `matchmaking_user_stats` es `(user_id)` sola, no `(user_id, pool_id)`, asi que
+  un jugador tiene UNA fila. El dia que se juegue ranked play de mas de un modo
+  hay que arreglar la tabla primero.
+- **10 de 27 rooms de ranked play tienen scores y cero elo**, incluidos los tres
+  mas recientes. Es un bug del spectator, no de la web, pero se ve desde la web.
