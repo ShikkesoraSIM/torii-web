@@ -54,20 +54,33 @@ $MYSQL < torii-medals.sql
 $MYSQL < torii-groups.sql
 
 # ---------------------------------------------------------------------- 4 ----
-say "4. mover las tablas proyectadas a osu_bak"
+say "4. sembrar los paises"
+# Va ANTES del swap y no despues: el seeder escribe en osu.osu_countries, y el
+# swap la muda a osu_bak. Al reves el seeder falla con "table doesn't exist" y el
+# ranking por pais queda vacio sin que nadie lo note.
+#
+# Las migraciones NO traen los paises: hay un seeder aparte.
+$COMPOSE run --rm --no-deps php artisan db:seed --class='Database\Seeders\ModelSeeders\CountrySeeder' --force
+
+say "5. mover las tablas proyectadas a osu_bak"
 # Las 25 tablas que van a pasar a ser vistas se mudan en vez de borrarse: sirve
 # para comparar contra lo que habia y para volver atras con un RENAME.
 # Tambien salva el catalogo de paises, que es dato de osu-web y no de Torii.
 $MYSQL < torii-views-swap.sql
 
 # ---------------------------------------------------------------------- 5 ----
-say "5. las tablas de cache (lo que no puede ser vista)"
+say "6. las tablas de cache (lo que no puede ser vista)"
 # Agregados caros: plays por mapa, favoritos, nombres de difficulties, el
 # grafico de fails y los primeros puestos. Tarda un rato.
 TORII_SOURCE_SCHEMA=$SRC ./torii-render.sh torii-cache.sql | $MYSQL
 
 # ---------------------------------------------------------------------- 6 ----
-say "6. generar y crear las vistas"
+say "7. generar y crear las vistas"
+# El generador corre como toriiweb y lee information_schema para saber que
+# columnas tiene que exponer cada vista. information_schema solo muestra lo que
+# el usuario puede ver, asi que sin este GRANT las 25 tablas de osu_bak le
+# resultan invisibles y aborta diciendo que no existen.
+$MYSQL -e 'GRANT SELECT ON osu_bak.* TO "toriiweb"@"%"; FLUSH PRIVILEGES;'
 # El tercer argumento es de donde leer las columnas que cada vista tiene que
 # exponer: osu_bak, porque las tablas se acaban de mudar ahi.
 $COMPOSE run --rm --no-deps php php /app/torii-views.php "$SRC" osu osu_bak > /tmp/torii-views-prod.sql
@@ -76,13 +89,13 @@ $MYSQL < /tmp/torii-views-prod.sql
 rm -f /tmp/torii-views-prod.sql
 
 # ---------------------------------------------------------------------- 7 ----
-say "7. la pagina de perfil de cada jugador"
+say "8. la pagina de perfil de cada jugador"
 # Vive en phpbb_posts porque es de donde la lee osu-web; la fuente sigue siendo
 # lazer_users.page.
 $COMPOSE run --rm --no-deps php php /app/torii-userpages.php
 
 # ---------------------------------------------------------------------- 8 ----
-say "8. indices de elasticsearch"
+say "9. indices de elasticsearch"
 # El de scores es el que decide si los leaderboards de mapas y el Best
 # Performance de los perfiles tienen algo adentro. Sin esto la web no se cae:
 # muestra todo vacio y dice que cada score es #1 del mundo.
@@ -91,7 +104,7 @@ $COMPOSE run --rm --no-deps php sh -c 'echo yes | php artisan es:index --yes' ||
 $COMPOSE run --rm --no-deps php sh -c 'echo yes | php artisan es:index-wiki'
 
 # ---------------------------------------------------------------------- 9 ----
-say "9. control"
+say "10. control"
 $MYSQL -N -e "
 SELECT 'vistas en osu', COUNT(*) FROM information_schema.tables
   WHERE table_schema='osu' AND table_type='VIEW'

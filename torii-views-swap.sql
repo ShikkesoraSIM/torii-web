@@ -58,4 +58,9 @@ RENAME TABLE
     osu.osu_user_performance_rank          TO osu_bak.osu_user_performance_rank,
     osu.osu_user_performance_rank_highest  TO osu_bak.osu_user_performance_rank_highest,
     osu.osu_countries                      TO osu_bak.osu_countries,
-    osu.beatmap_leaders                    TO osu_bak.beatmap_leaders;
+    osu.beatmap_leaders                    TO osu_bak.beatmap_leaders,
+    -- Las tres de ranked play. osu-web las crea con sus migraciones y en g0v0
+    -- existen casi iguales, porque su esquema salio del de ellos.
+    osu.matchmaking_pools                  TO osu_bak.matchmaking_pools,
+    osu.matchmaking_user_stats             TO osu_bak.matchmaking_user_stats,
+    osu.matchmaking_user_elo_history       TO osu_bak.matchmaking_user_elo_history;
