@@ -56,25 +56,31 @@
                     playsinline is for iphone autoplay
                     reference: https://webkit.org/blog/6784/new-video-policies-for-ios/
                 --}}
-                <video
-                    class="landing-hero__bg"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    src="{{ $GLOBALS['cfg']['osu']['landing']['video_url'] }}"
-                ></video>
+                {{-- torii: aca iba un video de osu! alojado en assets.ppy.sh.
+                     No es nuestro y ademas daba una caja negra vacia. El fondo
+                     lo pone landing-hero__bg-container por css. --}}
+                @if (present($GLOBALS['cfg']['osu']['landing']['video_url']))
+                    <video
+                        class="landing-hero__bg"
+                        autoplay
+                        loop
+                        muted
+                        playsinline
+                        src="{{ $GLOBALS['cfg']['osu']['landing']['video_url'] }}"
+                    ></video>
+                @endif
             </div>
 
             {{-- torii: aca iba Pippi, la mascota de osu!. El logo grande de la
                  marca ya se dibuja mas abajo en landing-hero__logo. --}}
 
             <div class="landing-hero__info">
+                {{-- torii: numeros reales del servidor. El de partidas en
+                     curso no existe aca y se cambio por las plays, que es lo
+                     que de verdad dice si el lugar esta vivo. --}}
                 {!! osu_trans("home.landing.players", ['count' => i18n_number_format($stats->totalUsers)]) !!},
-                {!! osu_trans("home.landing.online", [
-                    'players' => i18n_number_format($stats->currentOnline),
-                    'games' => i18n_number_format($stats->currentGames)]
-                ) !!}
+                {!! osu_trans("home.landing.online", ['players' => i18n_number_format($stats->currentOnline)]) !!},
+                {!! osu_trans("home.landing.plays", ['count' => i18n_number_format($stats->totalPlays)]) !!}
             </div>
 
             <div class="landing-hero__messages">
@@ -121,8 +127,13 @@
         </div>
     </div>
 
-    <div class="osu-page js-react" data-react="landing-news">
-    </div>
+    {{-- torii: sin noticias el componente no dibuja nada pero el contenedor
+         se queda igual, y en la portada eso es una franja negra en el medio.
+         Mientras no haya noticias, no va el bloque. --}}
+    @if (count($news) > 0)
+        <div class="osu-page js-react" data-react="landing-news">
+        </div>
+    @endif
 
     <footer class="osu-layout__section osu-layout__section--landing-footer">
         <div class="osu-page">
@@ -144,8 +155,10 @@
             <a href="{{ route('support-the-game') }}" class="landing-footer-social__icon landing-footer-social__icon--support">
                 <span class="fas fa-heart"></span>
             </a>
-            <a href="{{ osu_url('social.twitter') }}" class="landing-footer-social__icon landing-footer-social__icon--twitter">
-                <span class="fab fa-twitter"></span>
+            {{-- torii: upstream manda a /wiki/Twitter, que aca da 404. Torii
+                 vive en discord, no en twitter. --}}
+            <a href="{{ osu_url('social.discord') }}" class="landing-footer-social__icon">
+                <span class="fab fa-discord"></span>
             </a>
         </div>
 
@@ -160,33 +173,35 @@
         {!! json_encode($news) !!}
     </script>
 
+    {{-- torii: los datos estructurados decian que esta pagina es osu!, con la
+         url de ppy, su logo, su fecha de lanzamiento y su repositorio. Es lo
+         que se lleva un buscador o el preview de un link, asi que decia la
+         marca equivocada en todos lados. --}}
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "VideoGame",
       "name": "Torii",
-      "url": "https://osu.ppy.sh/",
-      "image": "https://assets.ppy.sh/logo-with-background.png",
-      "description": "rhythm is just a click away",
+      "url": "{{ config('app.url') }}",
+      "description": "{{ osu_trans('home.landing.slogan.main') }}",
       "author": {
         "@type": "Organization",
-        "name": "ppy"
+        "name": "Shikkesora"
       },
       "publisher": {
         "@type": "Organization",
-        "name": "ppy"
-      },
-      "producer": {
-        "@type": "Organization",
-        "name": "ppy"
+        "name": "Shikkesora"
       },
       "applicationCategory": "Game",
       "gamePlatform": ["Windows", "macOS", "Linux", "Android", "iOS"],
-      "playMode": ["SinglePlayer","MultiPlayer"],
+      "playMode": ["SinglePlayer", "MultiPlayer"],
       "genre": "Rhythm",
-      "inLanguage": ["en", "be", "bg", "ca", "cs", "da", "de", "el", "es", "fi", "fr", "hr-hr", "hu", "id", "it", "ja", "ko", "lt", "lv-lv", "ms-my", "nl", "no", "pl", "pt", "pt-br", "ro", "ru", "sk", "sl", "sr", "sv", "th", "tr", "uk", "vi", "zh", "zh_hant"],
-      "sameAs": "https://github.com/ppy/osu",
-      "datePublished": "2007-09-16"
+      "inLanguage": ["en"],
+      "isBasedOn": {
+        "@type": "VideoGame",
+        "name": "osu!",
+        "url": "https://osu.ppy.sh/"
+      }
     }
     </script>
 @endsection

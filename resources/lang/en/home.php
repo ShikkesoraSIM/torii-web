@@ -6,7 +6,8 @@
 return [
     'landing' => [
         'download' => 'Download now',
-        'online' => '<strong>:players</strong> currently online in <strong>:games</strong> games',
+        'online' => '<strong>:players</strong> online right now',
+        'plays' => '<strong>:count</strong> plays submitted',
         'peak' => 'Peak, :count online users',
         'players' => '<strong>:count</strong> registered players',
         'title' => 'welcome',

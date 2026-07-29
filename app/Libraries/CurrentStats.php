@@ -5,10 +5,7 @@
 
 namespace App\Libraries;
 
-use App\Models\BanchoStats;
-use App\Models\Count;
-use Auth;
-use Cache;
+
 
 class CurrentStats
 {
@@ -18,24 +15,25 @@ class CurrentStats
     public int $onlineFriends;
     public int $totalUsers;
 
+    public int $totalPlays;
+
     public function __construct()
     {
-        $data = Cache::remember('current_stats:v1', 300, function () {
-            $stats = BanchoStats::stats();
-            $latest = array_last($stats);
+        // torii: los numeros salian de osu_banchostats, que es la serie que
+        // escribe bancho cada pocos minutos. Torii no tiene bancho y esa tabla
+        // esta vacia, asi que la portada saludaba con cero de todo. Ahora sale
+        // de la base, en vivo. Ver App\Libraries\Torii\ServerStats.
+        $stats = new Torii\ServerStats();
 
-            return [
-                'currentOnline' => $latest['users'] ?? 0,
-                'currentGames' => ($latest['multiplayer_games'] ?? 0) + ($latest['multiplayer_games_lazer'] ?? 0),
-                'graphData' => array_to_graph_json($stats, 'users'),
-                'totalUsers' => Count::totalUsers()->count,
-            ];
-        });
+        $this->currentOnline = $stats->currentOnline;
+        $this->graphData = $stats->graphData;
+        $this->onlineFriends = $stats->onlineFriends;
+        $this->totalPlays = $stats->totalPlays;
+        $this->totalUsers = $stats->totalUsers;
 
-        $this->onlineFriends = Auth::user() ? Auth::user()->friends()->online()->count() : 0;
-        $this->currentOnline = $data['currentOnline'];
-        $this->currentGames = $data['currentGames'];
-        $this->graphData = $data['graphData'];
-        $this->totalUsers = $data['totalUsers'];
+        // Torii no tiene partidas multijugador en curso que contar. Queda en
+        // cero para no romper a nadie que lo lea, pero la portada muestra las
+        // plays en su lugar.
+        $this->currentGames = 0;
     }
 }

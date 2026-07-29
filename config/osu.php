@@ -165,7 +165,9 @@ return [
     ],
     'is_development_deploy' => get_bool(env('IS_DEVELOPMENT_DEPLOY')) ?? true,
     'landing' => [
-        'video_url' => env('LANDING_VIDEO_URL', 'https://assets.ppy.sh/media/landing.mp4'),
+        // torii: sin video por defecto. El de upstream vive en assets.ppy.sh,
+        // no es nuestro, y la caja quedaba negra.
+        'video_url' => env('LANDING_VIDEO_URL', ''),
     ],
     'legacy' => [
         'bancho_bot_user_id' => get_int(env('BANCHO_BOT_USER_ID')) ?? 3,
@@ -234,9 +236,13 @@ return [
     'twitch_client_id' => presence(env('TWITCH_CLIENT_ID')),
     'twitch_client_secret' => presence(env('TWITCH_CLIENT_SECRET')),
     'urls' => [
-        'base' => 'https://osu.ppy.sh',
+        // torii: se usa para armar urls absolutas hacia "el sitio". Apuntaba a
+        // osu.ppy.sh, que es otro sitio.
+        'base' => presence(env('OSU_URL_BASE')) ?? env('APP_URL', 'https://torii-web.shikkesora.com'),
         'bounty-form' => env('OS_BOUNTY_URL'),
-        'dev' => 'https://discord.gg/ppy',
+        // torii: era el discord de osu!. Es el link "dev" del menu de
+        // comunidad, o sea que mandaba a la gente de Torii al servidor de ppy.
+        'dev' => presence(env('OSU_URL_DEV')) ?? 'https://discord.gg/fZXsZFT5Xv',
         'download_video' => env('OSU_URL_DOWNLOAD_VIDEO', 'https://assets.ppy.sh/media/festive.mp4'),
         'installer' => 'https://m1.ppy.sh/r/osu!install.exe',
         'installer-mirror' => 'https://m2.ppy.sh/r/osu!install.exe',
@@ -252,6 +258,10 @@ return [
         'osx' => 'https://osx.ppy.sh',
         'server_status' => 'https://status.ppy.sh',
         'smilies' => '/forum/images/smilies',
+        // torii: upstream apunta a /wiki/Twitter y Torii no tiene twitter; la
+        // comunidad vive en discord. Es el mismo invite que usa el frontend de
+        // lazer.shikkesora.com.
+        'social.discord' => presence(env('OSU_URL_SOCIAL_DISCORD')) ?? 'https://discord.gg/fZXsZFT5Xv',
         'social.twitter' => '/wiki/Twitter',
         // torii: osu-web es AGPL-3.0-or-later y la clausula 13 obliga a
         // ofrecerle a cualquiera que use el sitio por red el codigo fuente de
