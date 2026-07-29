@@ -110,9 +110,19 @@ services:
       DB_HOST: osu_api_mysql
       DB_USERNAME: toriiweb
       DB_PASSWORD: "${DB_PASSWORD}"
-    # En prod los assets se compilan una vez y se sirven estaticos: no hace falta
-    # el watcher corriendo para siempre.
-    command: ["build"]
+    # Los assets se compilan UNA vez con webpack en modo produccion y despues el
+    # contenedor se apaga: no hace falta un watcher corriendo para siempre.
+    #
+    # OJO con el comando: docker/development/run.sh solo entiende assets, job,
+    # migrate, octane, schedule, test y watch; cualquier otra cosa la ejecuta
+    # tal cual. Y "assets" es `yarn dev`, que es el build de DESARROLLO. El de
+    # produccion es `yarn prod`, que va por el caso comodin.
+    #
+    # Y no es opcional: run.sh hace que octane espere a que exista
+    # public/assets/manifest.json antes de arrancar, o sea que sin este build php
+    # no levanta nunca y se queda imprimiendo "waiting to start octane".
+    command: ["yarn", "prod"]
+    restart: "no"
 
   notification-server:
     networks: [default, g0v0]
