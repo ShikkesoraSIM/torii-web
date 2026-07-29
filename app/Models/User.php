@@ -952,11 +952,15 @@ class User extends Model implements AfterCommit, AuthenticatableContract, HasLoc
             'scoresTaiko',
             'soloScores',
             'statisticsFruits',
+            'statisticsFruitsRx',
             'statisticsMania',
             'statisticsMania4k',
             'statisticsMania7k',
             'statisticsOsu',
+            'statisticsOsuAp',
+            'statisticsOsuRx',
             'statisticsTaiko',
+            'statisticsTaikoRx',
             'storeAddresses',
             'supporterTagPurchases',
             'supporterTags',
@@ -1381,6 +1385,27 @@ class User extends Model implements AfterCommit, AuthenticatableContract, HasLoc
     public function statisticsMania4k()
     {
         return $this->hasOne(UserStatistics\Mania4k::class);
+    }
+
+    // torii: relax y autopilot. Ver el comentario de Beatmap::VARIANTS.
+    public function statisticsOsuRx()
+    {
+        return $this->hasOne(UserStatistics\OsuRx::class);
+    }
+
+    public function statisticsOsuAp()
+    {
+        return $this->hasOne(UserStatistics\OsuAp::class);
+    }
+
+    public function statisticsTaikoRx()
+    {
+        return $this->hasOne(UserStatistics\TaikoRx::class);
+    }
+
+    public function statisticsFruitsRx()
+    {
+        return $this->hasOne(UserStatistics\FruitsRx::class);
     }
 
     public function statisticsMania7k()
