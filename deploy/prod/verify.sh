@@ -43,7 +43,14 @@ done
 # --------------------------------------------------- contenido, no estado ----
 head_ "que las paginas tengan algo adentro"
 
-n=$(get / | grep -oE '[0-9,]+ registered players' | head -1)
+# Las etiquetas se sacan ANTES de buscar, y el html se aplasta a una linea.
+# Sin eso el chequeo da falso negativo por dos motivos: el numero viene envuelto
+# en <strong>, asi que "799 registered players" en realidad es
+# "<strong>799</strong> registered players", y grep -o no cruza saltos de linea.
+plano() { tr '
+' ' ' | sed 's/<[^>]*>/ /g'; }
+
+n=$(get / | plano | grep -oE '[0-9,]+ +registered players' | head -1)
 [ -n "$n" ] && ok "portada: $n" || bad "portada: no aparece el contador de jugadores"
 
 filas=$(get /rankings/osu/global | grep -c 'ranking-page-table__row')
@@ -65,7 +72,7 @@ for u in /legal/en/Terms /legal/en/Privacy /legal/en/Copyright; do
     fi
 done
 
-palabras=$(get /wiki/en/Rules | sed 's/<[^>]*>/ /g' | wc -w)
+palabras=$(get /wiki/en/Rules | plano | wc -w)
 [ "$palabras" -ge 300 ] && ok "wiki Rules: $palabras palabras" || bad "wiki Rules: solo $palabras palabras"
 
 # ------------------------------------------------------- elasticsearch -------
