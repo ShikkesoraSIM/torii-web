@@ -75,15 +75,35 @@ class Beatmap extends Model implements AfterCommit
         'mania' => 3,
     ];
 
+    // torii: relax y autopilot entran como VARIANTES, no como rulesets nuevos.
+    //
+    // Son 22,7% de los scores del servidor y los usa el 56% de los que jugaron
+    // en el ultimo mes, asi que no mostrarlos es dejar afuera media comunidad.
+    // Pero un ruleset nuevo toca 66 lugares y la mitad son de MAPAS, no de
+    // jugadores: la busqueda de beatmaps, las nominaciones, las discusiones y
+    // los contests terminarian ofreciendo un filtro "osu!relax" con cero mapas,
+    // porque un mapa de relax no existe. Un mapa es el mismo, lo que cambia es
+    // como se juega.
+    //
+    // "Mismo ruleset, tabla y ranking aparte" es exactamente lo que osu-web ya
+    // hace con 4K y 7K de mania, y es lo que relax es de verdad. Los ids son
+    // los que usa g0v0 en GameMode (4 osurx, 5 osuap, 6 taikorx, 7 fruitsrx)
+    // para que las dos puntas hablen del mismo numero.
+    //
+    // mania no lleva relax: el servidor no tiene ese modo.
     const VARIANT_BY_ID = [
         self::MODES['osu'] => [
             0 => '',
+            4 => 'rx',
+            5 => 'ap',
         ],
         self::MODES['taiko'] => [
             0 => '',
+            6 => 'rx',
         ],
         self::MODES['fruits'] => [
             0 => '',
+            7 => 'rx',
         ],
         self::MODES['mania'] => [
             0 => '',
@@ -93,6 +113,9 @@ class Beatmap extends Model implements AfterCommit
     ];
 
     const VARIANTS = [
+        'osu' => ['rx', 'ap'],
+        'taiko' => ['rx'],
+        'fruits' => ['rx'],
         'mania' => ['4k', '7k'],
     ];
 

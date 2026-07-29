@@ -301,6 +301,40 @@ function user_stats(string $src, string $mode): array
     ];
 }
 
+// Relax y autopilot. Son variantes de su ruleset base, no rulesets nuevos: ver
+// el comentario de Beatmap::VARIANTS. La tabla que osu-web espera es la de una
+// variante (14 columnas, no las 30 de la principal), asi que el layout se lo
+// piden prestado a la de mania 4K, que ya existe.
+function user_stats_variant(string $src, string $mode): array
+{
+    return [
+        'like' => 'osu_user_stats_mania_4k',
+        'from' => "$src.lazer_user_statistics s JOIN $src.lazer_users u ON u.id = s.user_id",
+        'where' => "s.mode = '$mode'",
+        'cols' => [
+            'user_id' => 's.user_id',
+            'playcount' => 'COALESCE(s.play_count,0)',
+            'x_rank_count' => 'COALESCE(s.grade_ss,0)',
+            'xh_rank_count' => 'COALESCE(s.grade_ssh,0)',
+            's_rank_count' => 'COALESCE(s.grade_s,0)',
+            'sh_rank_count' => 'COALESCE(s.grade_sh,0)',
+            'a_rank_count' => 'COALESCE(s.grade_a,0)',
+            'country_acronym' => "COALESCE(NULLIF(u.country_code,''),'XX')",
+            'rank_score' => 'COALESCE(s.pp,0)',
+            'rank_score_index' => 'CASE WHEN COALESCE(s.pp,0) > 0 THEN ' . rank_window('global') . ' ELSE 0 END',
+            'ranked_score' => 'COALESCE(s.ranked_score,0)',
+            'accuracy_new' => 'COALESCE(s.hit_accuracy,0)',
+            'last_update' => 'NOW()',
+            'last_played' => 'COALESCE(s.last_played, NOW())',
+        ],
+    ];
+}
+
+$V['osu_user_stats_osu_rx'] = user_stats_variant($src, 'OSURX');
+$V['osu_user_stats_osu_ap'] = user_stats_variant($src, 'OSUAP');
+$V['osu_user_stats_taiko_rx'] = user_stats_variant($src, 'TAIKORX');
+$V['osu_user_stats_fruits_rx'] = user_stats_variant($src, 'FRUITSRX');
+
 $V['osu_user_stats'] = user_stats($src, 'OSU');
 $V['osu_user_stats_taiko'] = user_stats($src, 'TAIKO');
 $V['osu_user_stats_fruits'] = user_stats($src, 'FRUITS');
@@ -436,11 +470,29 @@ $scoreData = "JSON_OBJECT(
         ))
     )";
 
+// Relax y autopilot NO entran, y no es por prolijidad.
+//
+// osu-web filtra los scores por ruleset_id y en Torii un score de relax no
+// tiene ruleset propio: su ruleset_id colapsa al modo base. O sea que una play
+// de osu!relax aparecia en las plays recientes del perfil como si fuera osu!
+// standard, mezclada con las otras y sin ninguna marca. Los otros lugares donde
+// podian colarse (leaderboard de mapa, best performance, primeros puestos)
+// filtran ademas por ranked, asi que ahi no llegaban: la unica cosa que hacian
+// era ese leak.
+//
+// Que se pierde: nada que se estuviera mostrando. El ranking de relax y
+// autopilot sale de lazer_user_statistics, que es una tabla aparte por modo, y
+// esta entero (ver osu_user_stats_osu_rx y compania). Las plays cuentan igual
+// en el playcount y el passcount de cada mapa, que se calculan en la cache
+// sobre torii.scores sin este filtro.
+//
+// Para mostrar los scores de relax uno por uno hace falta que tengan
+// ruleset_id propio (4 a 7, como en g0v0), y eso arrastra el enum Ruleset, los
+// mapas exhaustivos de score-helper.ts y mods.json, que solo conocen 0 a 3. Es
+// un trabajo aparte y grande; esto no lo bloquea.
 $V['scores'] = [
     'from' => "$src.scores s",
-    // Los modos propios entran igual porque son plays reales, pero con
-    // ranked = 0: osu-web los mapearia al modo base y ensuciaria los rankings y
-    // el top play de cada perfil.
+    'where' => "s.gamemode IN ('OSU','TAIKO','FRUITS','MANIA')",
     'cols' => [
         'id' => 's.id',
         'user_id' => 's.user_id',
@@ -450,7 +502,7 @@ $V['scores'] = [
         // servirlos, asi que el boton de descarga se dibujaria para morir.
         'has_replay' => '0',
         'preserve' => 'COALESCE(s.preserve, 0)',
-        'ranked' => "CASE WHEN s.gamemode IN ('OSU','TAIKO','FRUITS','MANIA') THEN COALESCE(s.ranked, 0) ELSE 0 END",
+        'ranked' => 'COALESCE(s.ranked, 0)',
         'rank' => "COALESCE(s.`rank`, 'D')",
         'passed' => 'COALESCE(s.passed, 0)',
         'accuracy' => 'COALESCE(s.accuracy, 0)',
@@ -777,7 +829,9 @@ $out[] = "";
 $missing = [];
 
 foreach ($V as $table => $def) {
-    $cols = columns($pdo, $ref, $table);
+    // Las vistas nuevas (las de relax y autopilot) no tienen tabla de donde
+    // leer el layout, asi que lo piden prestado a la variante que ya existe.
+    $cols = columns($pdo, $ref, $def['like'] ?? $table);
 
     if ($cols === []) {
         $missing[] = "$ref.$table no existe";

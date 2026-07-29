@@ -377,6 +377,19 @@ return [
         'favourites' => 'Favourites: :count',
     ],
     'variant' => [
+        'osu' => [
+            'all' => 'All',
+            'rx' => 'Relax',
+            'ap' => 'Autopilot',
+        ],
+        'taiko' => [
+            'all' => 'All',
+            'rx' => 'Relax',
+        ],
+        'fruits' => [
+            'all' => 'All',
+            'rx' => 'Relax',
+        ],
         'mania' => [
             '4k' => '4K',
             '7k' => '7K',

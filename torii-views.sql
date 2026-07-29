@@ -125,6 +125,98 @@ FROM torii.relationship r
 ;
 
 -- ---------------------------------------------------------------------------
+-- osu_user_stats_osu_rx
+DROP VIEW IF EXISTS `osu`.`osu_user_stats_osu_rx`;
+CREATE VIEW `osu`.`osu_user_stats_osu_rx` AS
+SELECT
+    s.user_id AS `user_id`,
+    COALESCE(s.play_count,0) AS `playcount`,
+    COALESCE(s.grade_ss,0) AS `x_rank_count`,
+    COALESCE(s.grade_ssh,0) AS `xh_rank_count`,
+    COALESCE(s.grade_s,0) AS `s_rank_count`,
+    COALESCE(s.grade_sh,0) AS `sh_rank_count`,
+    COALESCE(s.grade_a,0) AS `a_rank_count`,
+    COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
+    COALESCE(s.pp,0) AS `rank_score`,
+    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    COALESCE(s.ranked_score,0) AS `ranked_score`,
+    COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
+    NOW() AS `last_update`,
+    COALESCE(s.last_played, NOW()) AS `last_played`
+FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
+WHERE s.mode = 'OSURX'
+;
+
+-- ---------------------------------------------------------------------------
+-- osu_user_stats_osu_ap
+DROP VIEW IF EXISTS `osu`.`osu_user_stats_osu_ap`;
+CREATE VIEW `osu`.`osu_user_stats_osu_ap` AS
+SELECT
+    s.user_id AS `user_id`,
+    COALESCE(s.play_count,0) AS `playcount`,
+    COALESCE(s.grade_ss,0) AS `x_rank_count`,
+    COALESCE(s.grade_ssh,0) AS `xh_rank_count`,
+    COALESCE(s.grade_s,0) AS `s_rank_count`,
+    COALESCE(s.grade_sh,0) AS `sh_rank_count`,
+    COALESCE(s.grade_a,0) AS `a_rank_count`,
+    COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
+    COALESCE(s.pp,0) AS `rank_score`,
+    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    COALESCE(s.ranked_score,0) AS `ranked_score`,
+    COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
+    NOW() AS `last_update`,
+    COALESCE(s.last_played, NOW()) AS `last_played`
+FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
+WHERE s.mode = 'OSUAP'
+;
+
+-- ---------------------------------------------------------------------------
+-- osu_user_stats_taiko_rx
+DROP VIEW IF EXISTS `osu`.`osu_user_stats_taiko_rx`;
+CREATE VIEW `osu`.`osu_user_stats_taiko_rx` AS
+SELECT
+    s.user_id AS `user_id`,
+    COALESCE(s.play_count,0) AS `playcount`,
+    COALESCE(s.grade_ss,0) AS `x_rank_count`,
+    COALESCE(s.grade_ssh,0) AS `xh_rank_count`,
+    COALESCE(s.grade_s,0) AS `s_rank_count`,
+    COALESCE(s.grade_sh,0) AS `sh_rank_count`,
+    COALESCE(s.grade_a,0) AS `a_rank_count`,
+    COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
+    COALESCE(s.pp,0) AS `rank_score`,
+    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    COALESCE(s.ranked_score,0) AS `ranked_score`,
+    COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
+    NOW() AS `last_update`,
+    COALESCE(s.last_played, NOW()) AS `last_played`
+FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
+WHERE s.mode = 'TAIKORX'
+;
+
+-- ---------------------------------------------------------------------------
+-- osu_user_stats_fruits_rx
+DROP VIEW IF EXISTS `osu`.`osu_user_stats_fruits_rx`;
+CREATE VIEW `osu`.`osu_user_stats_fruits_rx` AS
+SELECT
+    s.user_id AS `user_id`,
+    COALESCE(s.play_count,0) AS `playcount`,
+    COALESCE(s.grade_ss,0) AS `x_rank_count`,
+    COALESCE(s.grade_ssh,0) AS `xh_rank_count`,
+    COALESCE(s.grade_s,0) AS `s_rank_count`,
+    COALESCE(s.grade_sh,0) AS `sh_rank_count`,
+    COALESCE(s.grade_a,0) AS `a_rank_count`,
+    COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
+    COALESCE(s.pp,0) AS `rank_score`,
+    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    COALESCE(s.ranked_score,0) AS `ranked_score`,
+    COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
+    NOW() AS `last_update`,
+    COALESCE(s.last_played, NOW()) AS `last_played`
+FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
+WHERE s.mode = 'FRUITSRX'
+;
+
+-- ---------------------------------------------------------------------------
 -- osu_user_stats
 -- sin dato en Torii, va el default de la columna: accuracy_total, accuracy_count, fail_count, exit_count
 DROP VIEW IF EXISTS `osu`.`osu_user_stats`;
@@ -394,7 +486,7 @@ SELECT
     s.beatmap_id AS `beatmap_id`,
     0 AS `has_replay`,
     COALESCE(s.preserve, 0) AS `preserve`,
-    CASE WHEN s.gamemode IN ('OSU','TAIKO','FRUITS','MANIA') THEN COALESCE(s.ranked, 0) ELSE 0 END AS `ranked`,
+    COALESCE(s.ranked, 0) AS `ranked`,
     COALESCE(s.`rank`, 'D') AS `rank`,
     COALESCE(s.passed, 0) AS `passed`,
     COALESCE(s.accuracy, 0) AS `accuracy`,
@@ -427,6 +519,7 @@ SELECT
     UNIX_TIMESTAMP(COALESCE(s.ended_at, NOW())) AS `unix_updated_at`,
     NULL AS `build_id`
 FROM torii.scores s
+WHERE s.gamemode IN ('OSU','TAIKO','FRUITS','MANIA')
 ;
 
 -- ---------------------------------------------------------------------------
