@@ -42,6 +42,20 @@ services:
       # siempre porque los grupos de Torii se proyectaron y el admin cuenta
       # como privilegiado.
       TORII_SKIP_SESSION_VERIFICATION: "true"
+      # La wiki de osu-web NO sale de la base: sale de un repositorio de
+      # github, y osu-web se lo pide a la api de contents con un token. Estas
+      # cuatro variables son las que dicen cual repositorio, y sin ellas apunta
+      # a ppy/osu-wiki, que no es la nuestra.
+      #
+      # No alcanza con ponerlas en el .env del repo: /app es un volumen, asi
+      # que ese archivo nunca llega al contenedor. Van aca.
+      #
+      # El contenido convertido esta en ../torii-wiki (lo genera
+      # torii-wiki-convert.py). Falta subirlo a github y poner un token.
+      WIKI_USER: "${WIKI_USER:-ShikkesoraSIM}"
+      WIKI_REPOSITORY: "${WIKI_REPOSITORY:-torii-wiki}"
+      WIKI_BRANCH: "${WIKI_BRANCH:-master}"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
 
   assets:
     volumes:
@@ -52,6 +66,10 @@ services:
       - app-code:/app
     environment:
       USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
+      WIKI_USER: "${WIKI_USER:-ShikkesoraSIM}"
+      WIKI_REPOSITORY: "${WIKI_REPOSITORY:-torii-wiki}"
+      WIKI_BRANCH: "${WIKI_BRANCH:-master}"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
 
   migrator:
     volumes:
