@@ -10,6 +10,7 @@ use App\Exceptions\InvariantException;
 use App\Exceptions\ModelNotSavedException;
 use App\Jobs\EsDocument;
 use App\Libraries\BBCodeForDB;
+use App\Libraries\Torii;
 use App\Libraries\ChangeUsername;
 use App\Libraries\Elasticsearch\Indexable;
 use App\Libraries\Session\Store as SessionStore;
@@ -1851,6 +1852,14 @@ class User extends Model implements AfterCommit, AuthenticatableContract, HasLoc
 
     public function updatePage($text)
     {
+        // torii: la pagina de perfil es de Torii, no del foro. Se guarda en
+        // lazer_users.page, que es lo que leen el juego y lazer-web, y ademas
+        // se deja copia en phpbb_posts porque de ahi la lee osu-web para
+        // mostrarla. Ver App\Libraries\Torii\UserPage.
+        if (Torii\UserPage::handles($this)) {
+            return Torii\UserPage::update($this, $text);
+        }
+
         if ($this->userPage === null) {
             DB::transaction(function () use ($text) {
                 $topic = Forum\Topic::createNew(
@@ -2016,7 +2025,22 @@ class User extends Model implements AfterCommit, AuthenticatableContract, HasLoc
 
     public function checkPassword($password)
     {
-        return Hash::check($password, $this->getAuthPassword());
+        $hash = $this->getAuthPassword();
+
+        if (!present($hash)) {
+            return false;
+        }
+
+        // torii: las cuentas son las mismas que las del juego y el servidor las
+        // guarda como bcrypt del md5 de la clave, no de la clave pelada. Es el
+        // esquema que viene de bancho y lo que hace g0v0 en app/auth.py:
+        //
+        //     bcrypt.hashpw(hashlib.md5(password.encode()).hexdigest().encode(), gensalt())
+        //
+        // Se prueban los dos: primero el de osu-web, por si alguna cuenta se
+        // creo desde aca, y despues el de Torii. El prefijo $2b$ que escribe
+        // python lo verifica php sin tocarlo (probado, no asumido).
+        return Hash::check($password, $hash) || Hash::check(md5($password), $hash);
     }
 
     public function validatePasswordConfirmation()

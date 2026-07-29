@@ -5,6 +5,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Libraries\Torii\QueryHints;
 use App\Models\Beatmap;
 use App\Models\Country;
 use App\Models\CountryStatistics;
@@ -253,7 +254,7 @@ class RankingController extends Controller
 
                 if (isset($forceIndex)) {
                     $table = (new $class())->getTable();
-                    $stats->from(DB::raw("{$table} FORCE INDEX ({$forceIndex[$params['sort']]})"));
+                    $stats->from(DB::raw(QueryHints::forceIndex($table, $forceIndex[$params['sort']])));
                 }
                 break;
         }

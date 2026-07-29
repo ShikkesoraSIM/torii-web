@@ -61,10 +61,8 @@ foreach ($rows as $r) {
         ]
     );
 
-    DB::statement(
-        'UPDATE osu.phpbb_users SET userpage_post_id = ? WHERE user_id = ?',
-        [$postId, $r->id]
-    );
+    // El userpage_post_id no se escribe: la vista phpbb_users lo deriva del id
+    // del usuario, con la misma cuenta, para los que tienen algo escrito.
 
     $n++;
 }

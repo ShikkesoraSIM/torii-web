@@ -7,6 +7,7 @@ namespace App\Models;
 
 use App\Exceptions\ModelNotSavedException;
 use App\Libraries\MorphMap;
+use App\Libraries\Torii\WriteThrough;
 use App\Libraries\Transactions\AfterCommit;
 use App\Libraries\Transactions\AfterRollback;
 use App\Libraries\TransactionStateManager;
@@ -34,6 +35,45 @@ abstract class Model extends BaseModel
     public static function booted()
     {
         static::addGlobalScope(new MacroableModelScope());
+    }
+
+    // torii: las tablas que se comparten con el juego son vistas y una vista no
+    // acepta que le escriban una columna que es una expresion. WriteThrough
+    // traduce esos cambios a la tabla real de g0v0 y los saca de la lista de
+    // pendientes, asi que lo que llega a parent es solo lo que la vista si
+    // puede aceptar (o nada, y entonces Eloquent ni manda la consulta).
+    //
+    // Para las tablas que siguen siendo tablas de verdad, que son todas las que
+    // osu-web se guarda para si, esto no hace absolutamente nada.
+    protected function performUpdate(Builder $query)
+    {
+        WriteThrough::update($this);
+
+        return parent::performUpdate($query);
+    }
+
+    protected function performInsert(Builder $query)
+    {
+        if (WriteThrough::insert($this)) {
+            $this->exists = true;
+            $this->wasRecentlyCreated = true;
+            $this->syncOriginal();
+
+            return true;
+        }
+
+        return parent::performInsert($query);
+    }
+
+    protected function performDeleteOnModel()
+    {
+        if (WriteThrough::delete($this)) {
+            $this->exists = false;
+
+            return;
+        }
+
+        parent::performDeleteOnModel();
     }
 
     protected static function searchQueryAndParams(array $params)

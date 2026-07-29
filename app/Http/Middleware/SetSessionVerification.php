@@ -18,7 +18,18 @@ class SetSessionVerification
         $user = \Auth::user();
         if ($user !== null) {
             $session = \Session::instance();
-            $isVerified = $session->isVerified();
+            // torii: Torii no manda correo. El codigo de verificacion termina
+            // en el log del servidor, asi que pedirlo deja al jugador sin forma
+            // de entrar a su propia configuracion, y a los privilegiados
+            // (admin, gmt, bng, nat) les salta siempre. Con la verificacion
+            // apagada toda sesion cuenta como verificada, que es lo unico
+            // coherente cuando no hay canal para verificarla.
+            //
+            // Va aca y no en VerifyUserAlways::isRequired porque ese solo
+            // decide el flag de la sesion: el que corta el request es
+            // VerifyUser::handle, que mira isSessionVerified().
+            $isVerified = $GLOBALS['cfg']['torii']['skip_session_verification']
+                || $session->isVerified();
 
             if ($isVerified) {
                 $user->markSessionVerified();

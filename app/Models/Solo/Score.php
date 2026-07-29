@@ -16,6 +16,7 @@ use App\Libraries\Score\ReplayFile;
 use App\Libraries\Score\ScoringMode;
 use App\Libraries\Score\UserRank;
 use App\Libraries\Search\ScoreSearchParams;
+use App\Libraries\Torii\QueryHints;
 use App\Models\Beatmap;
 use App\Models\Build;
 use App\Models\Count;
@@ -217,7 +218,7 @@ class Score extends Model implements Traits\ReportableInterface
     {
         return $query->where('ranked', true)
             ->whereHas('user', fn ($q) => $q->default())
-            ->from(\DB::raw("{$this->getTable()} FORCE INDEX (PRIMARY)"))
+            ->from(\DB::raw(QueryHints::forceIndex($this->getTable(), 'PRIMARY')))
             ->leftJoinRelation('processHistory')
             ->select([$query->qualifyColumn('*'), 'processed_version']);
     }
@@ -254,7 +255,7 @@ class Score extends Model implements Traits\ReportableInterface
 
         return $query
             // ensure correct index is used
-            ->from(\DB::raw("{$this->getTable()} FORCE INDEX (user_ruleset_index)"))
+            ->from(\DB::raw(QueryHints::forceIndex($this->getTable(), 'user_ruleset_index')))
             ->default()
             ->forRuleset($ruleset)
             ->includeFails($includeFails)
