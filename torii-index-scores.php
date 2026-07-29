@@ -2,20 +2,31 @@
 
 // torii: arma el indice `scores` de elasticsearch a partir de la tabla scores.
 //
-// osu-web no indexa scores por su cuenta: solo los encola, y quien los escribe
-// de verdad es osu-elastic-indexer, un servicio aparte que este compose no
-// levanta. Sin ese indice la pagina de un score tira 404 de elasticsearch,
-// porque para mostrar la posicion del jugador hace una busqueda.
+// Por que hace falta un script y no el indexador oficial: osu-elastic-indexer
+// corre `queue watch`, o sea que indexa los scores que alguien le ENCOLA. El que
+// encola en osu! upstream es osu-web al recibir el score, pero aca los scores no
+// entran por osu-web: los recibe g0v0. O sea que no hay productor de esa cola y
+// el indexador se quedaria esperando para siempre.
 //
-// El documento sale de leer que campos consulta ScoreSearch::getQuery():
-// id, beatmap_id, ruleset_id, user_id, total_score, legacy_total_score, pp,
+// Y no es que quede vacio y se note: el alias `scores` apuntando a un indice sin
+// documentos hace que la web MIENTA. Todos los leaderboards de mapas vacios,
+// todos los Best Performance vacios, y cada score diciendo que es #1 del mundo,
+// porque el rank se calcula como "1 + cuantos te ganan" y sobre cero eso da 1.
+//
+// El documento sale de leer que campos consulta ScoreSearch::getQuery(): id,
+// beatmap_id, ruleset_id, user_id, total_score, legacy_total_score, pp,
 // is_legacy, mods, convert y country_code. Nada mas.
 //
-// Se crea un indice propio y se le cuelga el alias `scores`, que es el nombre
-// contra el que consulta osu-web.
+// Uso:
+//   php torii-index-scores.php              incremental: solo los scores nuevos
+//   php torii-index-scores.php --full       reconstruye de cero
+//
+// El incremental es el que va por cron. Arranca del id mas alto que ya esta
+// indexado, asi que corre en segundos aunque haya doscientos mil scores.
 
 const ES = 'http://elasticsearch:9200';
-const INDEX = 'scores_torii';
+const ALIAS = 'scores';
+const PREFIX = 'scores_torii';
 const CHUNK = 5000;
 
 function es(string $method, string $path, ?string $body = null, string $type = 'application/json'): array
@@ -36,9 +47,14 @@ function es(string $method, string $path, ?string $body = null, string $type = '
     return [$code, $out];
 }
 
-es('DELETE', '/' . INDEX);
+function esJson(string $method, string $path, ?string $body = null): array
+{
+    [$code, $out] = es($method, $path, $body);
 
-[$code, $out] = es('PUT', '/' . INDEX, json_encode([
+    return [$code, json_decode($out ?: 'null', true)];
+}
+
+const MAPPING = [
     'settings' => ['number_of_shards' => 1, 'number_of_replicas' => 0],
     'mappings' => ['properties' => [
         'id' => ['type' => 'long'],
@@ -53,20 +69,86 @@ es('DELETE', '/' . INDEX);
         'mods' => ['type' => 'keyword'],
         'country_code' => ['type' => 'keyword'],
     ]],
-]));
-if ($code >= 300) {
-    fwrite(STDERR, "no se pudo crear el indice: {$out}\n");
-    exit(1);
+];
+
+/**
+ * A que indice apunta el alias hoy, si apunta a alguno.
+ */
+function currentIndex(): ?string
+{
+    [$code, $body] = esJson('GET', '/_alias/' . ALIAS);
+
+    if ($code >= 300 || !is_array($body)) {
+        return null;
+    }
+
+    return array_key_first($body);
 }
 
-es('POST', '/_aliases', json_encode(['actions' => [
-    ['remove' => ['index' => '*', 'alias' => 'scores']],
-    ['add' => ['index' => INDEX, 'alias' => 'scores']],
-]]));
+/**
+ * El id mas alto que ya esta indexado. De ahi arranca el incremental.
+ */
+function maxIndexedId(string $index): int
+{
+    [$code, $body] = esJson('POST', "/{$index}/_search", json_encode([
+        'size' => 0,
+        'aggs' => ['max_id' => ['max' => ['field' => 'id']]],
+    ]));
 
-$db = new PDO('mysql:host=db;dbname=osu;charset=utf8mb4', 'root', '', [
+    if ($code >= 300) {
+        return 0;
+    }
+
+    return (int) ($body['aggregations']['max_id']['value'] ?? 0);
+}
+
+// -------------------------------------------------------------------- base --
+
+// Los datos de conexion salen del entorno y no hardcodeados: en la maquina local
+// el mysql es el del compose y en prod es el de g0v0, con otro host, otro usuario
+// y contrasena. Antes decia host=db con root sin contrasena, o sea que en prod
+// fallaba con "connection refused" a mitad del deploy.
+$host = getenv('DB_HOST') ?: 'db';
+$name = getenv('DB_DATABASE') ?: 'osu';
+$user = getenv('DB_USERNAME') ?: 'root';
+$pass = getenv('DB_PASSWORD') ?: '';
+
+$db = new PDO("mysql:host={$host};dbname={$name};charset=utf8mb4", $user, $pass, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
+
+// ------------------------------------------------------------------ modo ----
+
+$full = in_array('--full', $argv, true);
+$live = currentIndex();
+
+if ($live === null) {
+    // Sin alias no hay nada que actualizar: la primera corrida es completa.
+    $full = true;
+}
+
+if ($full) {
+    // Se construye en un indice NUEVO y el alias se mueve al final, en una sola
+    // operacion atomica. Antes esto hacia DELETE del indice y lo rellenaba, o
+    // sea que durante todo el rebuild los leaderboards del sitio se veian
+    // vacios. En prod eso se nota.
+    $index = PREFIX . '_' . date('YmdHis');
+    $after = 0;
+
+    [$code, $out] = es('PUT', '/' . $index, json_encode(MAPPING));
+    if ($code >= 300) {
+        fwrite(STDERR, "no se pudo crear {$index}: {$out}\n");
+        exit(1);
+    }
+
+    echo "reconstruyendo en {$index}\n";
+} else {
+    $index = $live;
+    $after = maxIndexedId($index);
+    echo "incremental sobre {$index}, desde el id {$after}\n";
+}
+
+// ----------------------------------------------------------------- scores ---
 
 // El beatmap se trae por el join para saber si el score es un convert: un mapa
 // de osu! jugado en taiko es el mismo beatmap con otro ruleset.
@@ -87,7 +169,6 @@ ORDER BY s.id LIMIT
 SQL;
 $stmt = $db->prepare($sql . ' ' . CHUNK);
 
-$after = 0;
 $total = 0;
 while (true) {
     $stmt->execute([$after]);
@@ -123,9 +204,9 @@ while (true) {
         $bulk .= json_encode($doc) . "\n";
     }
 
-    [$code, $out] = es('POST', '/' . INDEX . '/_bulk', $bulk, 'application/x-ndjson');
+    [$code, $out] = es('POST', '/' . $index . '/_bulk', $bulk, 'application/x-ndjson');
     if ($code >= 300) {
-        fwrite(STDERR, "fallo el bulk: " . substr($out, 0, 400) . "\n");
+        fwrite(STDERR, "fallo el bulk: " . substr((string) $out, 0, 400) . "\n");
         exit(1);
     }
 
@@ -133,5 +214,32 @@ while (true) {
     echo "\rindexados {$total}";
 }
 
-es('POST', '/' . INDEX . '/_refresh');
-echo "\nlisto: {$total} scores en el indice\n";
+es('POST', '/' . $index . '/_refresh');
+
+// ------------------------------------------------------------------ alias ---
+
+if ($full) {
+    // remove sobre '*' saca el alias de cualquier indice que lo tuviera,
+    // incluido el scores_1 vacio que crea osu-elastic-indexer si se lo dejan
+    // arrancar. Todo junto para que no haya un instante sin alias.
+    [$code, $out] = es('POST', '/_aliases', json_encode(['actions' => [
+        ['remove' => ['index' => '*', 'alias' => ALIAS]],
+        ['add' => ['index' => $index, 'alias' => ALIAS]],
+    ]]));
+    if ($code >= 300) {
+        fwrite(STDERR, "no se pudo mover el alias: {$out}\n");
+        exit(1);
+    }
+
+    // Los indices viejos con el prefijo se van; el que acaba de quedar activo no.
+    [, $indices] = esJson('GET', '/' . PREFIX . '*');
+    foreach (array_keys($indices ?: []) as $old) {
+        if ($old !== $index) {
+            es('DELETE', '/' . $old);
+            echo "\nborrado el viejo {$old}";
+        }
+    }
+}
+
+[, $count] = esJson('GET', '/' . ALIAS . '/_count');
+echo "\nlisto: {$total} scores nuevos, " . ($count['count'] ?? '?') . " en el indice\n";

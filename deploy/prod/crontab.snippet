@@ -1,0 +1,61 @@
+# torii: lo que hay que agregar al crontab de toriiadm en torii-eu.
+#
+#   crontab -e   (y pegar esto al final)
+#
+# Nada de esto sirve datos: los datos los sirven las vistas, en vivo. Esto
+# refresca las tres cosas que NO pueden ser vistas.
+#
+# Todo corre con `docker compose run --rm --no-deps`, que levanta un contenedor
+# aparte y no toca el que esta sirviendo. El --no-deps es importante: sin el,
+# compose se pone a arrancar dependencias en cada corrida del cron.
+
+TORII_WEB=/home/toriiadm/torii-web
+
+# ------------------------------------------------------------------ scores ----
+#
+# El indice de scores de elasticsearch, que es de donde salen los leaderboards
+# de los mapas y el Best Performance de los perfiles. No lo puede mantener el
+# indexador oficial de ppy porque ese consume una cola que en Torii nadie llena:
+# los scores los recibe g0v0, no osu-web.
+#
+# Cada 5 minutos, y en modo incremental: arranca del id mas alto que ya esta
+# indexado, asi que son segundos aunque haya doscientos mil scores.
+*/5 * * * * cd $TORII_WEB && docker compose -f compose.yaml -f deploy/prod/compose.prod.yml run --rm --no-deps php php /app/torii-index-scores.php >/dev/null 2>&1
+
+# Y una reconstruccion completa por dia, de madrugada.
+#
+# Hace falta porque el incremental solo AGREGA scores con id mas alto: nunca se
+# entera de un recalculo de pp, de un score que dejo de puntuar, ni de un
+# jugador que quedo restringido. Sin esto el indice se va desviando de la tabla
+# sin que nadie lo note.
+#
+# Construye en un indice nuevo y mueve el alias al final, asi que no hay ni un
+# instante con los leaderboards vacios.
+17 4 * * * cd $TORII_WEB && docker compose -f compose.yaml -f deploy/prod/compose.prod.yml run --rm --no-deps php php /app/torii-index-scores.php --full >/dev/null 2>&1
+
+# ----------------------------------------------------------------- cache ------
+#
+# Los agregados que osu-web lee de la fila y no calcula: plays y passes por mapa,
+# favoritos, nombres de las difficulties de cada set, el grafico de fails y los
+# primeros puestos. Son cuentas sobre cientos de miles de filas, o sea que
+# resolverlas en vivo por fila mataria cualquier listado. Es lo mismo que hace
+# ppy: esas columnas tampoco se calculan en vivo alla.
+#
+# Cada hora. Lo que queda viejo entre corridas es cuantas plays tiene un mapa;
+# nada que cambie la experiencia por tener sesenta minutos.
+23 * * * * cd $TORII_WEB && TORII_SOURCE_SCHEMA=osu_api ./torii-render.sh torii-cache.sql | docker exec -i osu_api_mysql mysql -uroot -ppassword --default-character-set=utf8mb4 >/dev/null 2>&1
+
+# ---------------------------------------------------------------- perfiles ----
+#
+# La pagina de perfil ("me!") se guarda en lazer_users.page, que es lo que leen
+# el juego y lazer-web, pero osu-web la lee de phpbb_posts. Esto copia la de
+# Torii a la del foro para los que la editaron desde el juego. Al reves no hace
+# falta: cuando se edita desde la web, se escriben las dos en el mismo request.
+41 * * * * cd $TORII_WEB && docker compose -f compose.yaml -f deploy/prod/compose.prod.yml run --rm --no-deps php php /app/torii-userpages.php >/dev/null 2>&1
+
+# ------------------------------------------------------------------- wiki -----
+#
+# osu-web revisa github por su cuenta cada cinco horas y se guarda la pagina
+# renderizada, pero el indice de elasticsearch (el que alimenta el buscador de
+# la wiki y el sitemap) solo se rearma cuando se lo pide. Una vez por dia.
+53 5 * * * cd $TORII_WEB && docker compose -f compose.yaml -f deploy/prod/compose.prod.yml run --rm --no-deps php sh -c 'echo yes | php artisan es:index-wiki' >/dev/null 2>&1
