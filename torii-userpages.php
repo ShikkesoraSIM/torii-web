@@ -20,12 +20,16 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+// El esquema de g0v0 se llama torii en la maquina local y osu_api en
+// produccion, asi que sale de la config y no hardcodeado.
+$schema = $GLOBALS['cfg']['torii']['source_schema'];
+
 $rows = DB::connection('mysql')->select("
     SELECT u.id,
            u.username,
            JSON_UNQUOTE(JSON_EXTRACT(u.page, '$.raw')) AS raw,
            UNIX_TIMESTAMP(COALESCE(u.last_visit, u.join_date, NOW())) AS ts
-    FROM torii.lazer_users u
+    FROM {$schema}.lazer_users u
     JOIN osu.phpbb_users p ON p.user_id = u.id
     WHERE u.page IS NOT NULL
       AND JSON_UNQUOTE(JSON_EXTRACT(u.page, '$.raw')) NOT IN ('', 'null')

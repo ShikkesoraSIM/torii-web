@@ -1,5 +1,15 @@
 -- torii: lo que las vistas NO pueden resolver en vivo.
 --
+-- OJO: este archivo NO se corre directo, tiene un placeholder. El esquema de
+-- g0v0 se llama distinto en cada lado (torii en la maquina local, osu_api en
+-- produccion), asi que va como @@SRC@@ y lo resuelve torii-render.sh:
+--
+--     ./torii-render.sh torii-cache.sql | mysql ...
+--
+-- Antes estaba hardcodeado en 'torii' y eso hacia que el archivo anduviera
+-- local y fallara en prod con "table doesn't exist", que es justo el tipo de
+-- error que aparece a mitad de un deploy.
+--
 -- Las vistas de torii-views.sql leen las tablas de g0v0 directamente, asi que
 -- un score entra a la web en el mismo instante en que entra al juego. Pero hay
 -- un punado de columnas que son cuentas sobre cientos de miles de filas y que
@@ -71,13 +81,13 @@ CREATE TABLE IF NOT EXISTS osu.torii_cache_beatmap_leader (
 TRUNCATE TABLE osu.torii_cache_beatmap;
 INSERT INTO osu.torii_cache_beatmap (beatmap_id, playcount, passcount)
 SELECT COALESCE(p.beatmap_id, s.beatmap_id), COALESCE(p.pc, 0), COALESCE(s.passes, 0)
-FROM (SELECT beatmap_id, SUM(playcount) AS pc FROM torii.beatmap_playcounts GROUP BY beatmap_id) p
-LEFT JOIN (SELECT beatmap_id, COUNT(*) AS passes FROM torii.scores WHERE passed = 1 GROUP BY beatmap_id) s
+FROM (SELECT beatmap_id, SUM(playcount) AS pc FROM @@SRC@@.beatmap_playcounts GROUP BY beatmap_id) p
+LEFT JOIN (SELECT beatmap_id, COUNT(*) AS passes FROM @@SRC@@.scores WHERE passed = 1 GROUP BY beatmap_id) s
   ON s.beatmap_id = p.beatmap_id
 UNION
 SELECT s.beatmap_id, COALESCE(p.pc, 0), s.passes
-FROM (SELECT beatmap_id, COUNT(*) AS passes FROM torii.scores WHERE passed = 1 GROUP BY beatmap_id) s
-LEFT JOIN (SELECT beatmap_id, SUM(playcount) AS pc FROM torii.beatmap_playcounts GROUP BY beatmap_id) p
+FROM (SELECT beatmap_id, COUNT(*) AS passes FROM @@SRC@@.scores WHERE passed = 1 GROUP BY beatmap_id) s
+LEFT JOIN (SELECT beatmap_id, SUM(playcount) AS pc FROM @@SRC@@.beatmap_playcounts GROUP BY beatmap_id) p
   ON p.beatmap_id = s.beatmap_id;
 
 -- versions_available es tinyint y hay sets con mas de 255 difficulties, asi que
@@ -90,12 +100,12 @@ SELECT m.beatmapset_id,
        0,
        LEFT(GROUP_CONCAT(m.version SEPARATOR ','), 2048),
        LEAST(COUNT(*), 255)
-FROM torii.beatmaps m
+FROM @@SRC@@.beatmaps m
 LEFT JOIN osu.torii_cache_beatmap c ON c.beatmap_id = m.id
 GROUP BY m.beatmapset_id;
 
 UPDATE osu.torii_cache_beatmapset s
-JOIN (SELECT beatmapset_id, COUNT(*) AS favs FROM torii.favourite_beatmapset GROUP BY beatmapset_id) t
+JOIN (SELECT beatmapset_id, COUNT(*) AS favs FROM @@SRC@@.favourite_beatmapset GROUP BY beatmapset_id) t
   ON t.beatmapset_id = s.beatmapset_id
 SET s.favourite_count = t.favs;
 
@@ -110,8 +120,8 @@ SELECT id, beatmap_id, ruleset_id, user_id FROM (
            ROW_NUMBER() OVER (
                PARTITION BY s.beatmap_id, s.gamemode
                ORDER BY s.total_score DESC, s.id ASC) AS rn
-    FROM torii.scores s
-    JOIN torii.beatmaps b ON b.id = s.beatmap_id
+    FROM @@SRC@@.scores s
+    JOIN @@SRC@@.beatmaps b ON b.id = s.beatmap_id
     WHERE s.passed = 1 AND s.preserve = 1 AND s.ranked = 1
       AND s.gamemode IN ('OSU','TAIKO','FRUITS','MANIA')
       AND b.beatmap_status IN ('RANKED','APPROVED','LOVED')
@@ -122,16 +132,16 @@ SELECT id, beatmap_id, ruleset_id, user_id FROM (
 -- del codigo del servidor, no de la base.
 UPDATE osu.osu_achievements a
 SET a.achieved_count = (
-    SELECT COUNT(*) FROM torii.lazer_user_achievements ua
+    SELECT COUNT(*) FROM @@SRC@@.lazer_user_achievements ua
     WHERE ua.achievement_id = a.achievement_id
 );
 
 -- Contadores que osu-web lee de la fila. Con usercount en 1 la portada saluda
 -- diciendo "1 registered players".
-UPDATE osu.osu_counts SET count = (SELECT COUNT(*) FROM torii.lazer_users WHERE username <> '')
+UPDATE osu.osu_counts SET count = (SELECT COUNT(*) FROM @@SRC@@.lazer_users WHERE username <> '')
 WHERE name = 'usercount';
 
-UPDATE osu.osu_counts SET count = (SELECT COALESCE(MAX(id), 0) FROM torii.scores)
+UPDATE osu.osu_counts SET count = (SELECT COALESCE(MAX(id), 0) FROM @@SRC@@.scores)
 WHERE name = 'last_processed_score_id';
 
 -- ------------------------------------------------------ grafico de fails --
@@ -243,8 +253,8 @@ SELECT f.beatmap_id, 'fail',
        CONV(HEX(REVERSE(SUBSTRING(f.`fail`, 389, 4))), 16, 10),
        CONV(HEX(REVERSE(SUBSTRING(f.`fail`, 393, 4))), 16, 10),
        CONV(HEX(REVERSE(SUBSTRING(f.`fail`, 397, 4))), 16, 10)
-FROM torii.failtime f
-JOIN torii.beatmaps b ON b.id = f.beatmap_id
+FROM @@SRC@@.failtime f
+JOIN @@SRC@@.beatmaps b ON b.id = f.beatmap_id
 WHERE f.`fail` IS NOT NULL
 ON DUPLICATE KEY UPDATE p1 = VALUES(p1), p2 = VALUES(p2), p3 = VALUES(p3), p4 = VALUES(p4), p5 = VALUES(p5), p6 = VALUES(p6), p7 = VALUES(p7), p8 = VALUES(p8), p9 = VALUES(p9), p10 = VALUES(p10), p11 = VALUES(p11), p12 = VALUES(p12), p13 = VALUES(p13), p14 = VALUES(p14), p15 = VALUES(p15), p16 = VALUES(p16), p17 = VALUES(p17), p18 = VALUES(p18), p19 = VALUES(p19), p20 = VALUES(p20), p21 = VALUES(p21), p22 = VALUES(p22), p23 = VALUES(p23), p24 = VALUES(p24), p25 = VALUES(p25), p26 = VALUES(p26), p27 = VALUES(p27), p28 = VALUES(p28), p29 = VALUES(p29), p30 = VALUES(p30), p31 = VALUES(p31), p32 = VALUES(p32), p33 = VALUES(p33), p34 = VALUES(p34), p35 = VALUES(p35), p36 = VALUES(p36), p37 = VALUES(p37), p38 = VALUES(p38), p39 = VALUES(p39), p40 = VALUES(p40), p41 = VALUES(p41), p42 = VALUES(p42), p43 = VALUES(p43), p44 = VALUES(p44), p45 = VALUES(p45), p46 = VALUES(p46), p47 = VALUES(p47), p48 = VALUES(p48), p49 = VALUES(p49), p50 = VALUES(p50), p51 = VALUES(p51), p52 = VALUES(p52), p53 = VALUES(p53), p54 = VALUES(p54), p55 = VALUES(p55), p56 = VALUES(p56), p57 = VALUES(p57), p58 = VALUES(p58), p59 = VALUES(p59), p60 = VALUES(p60), p61 = VALUES(p61), p62 = VALUES(p62), p63 = VALUES(p63), p64 = VALUES(p64), p65 = VALUES(p65), p66 = VALUES(p66), p67 = VALUES(p67), p68 = VALUES(p68), p69 = VALUES(p69), p70 = VALUES(p70), p71 = VALUES(p71), p72 = VALUES(p72), p73 = VALUES(p73), p74 = VALUES(p74), p75 = VALUES(p75), p76 = VALUES(p76), p77 = VALUES(p77), p78 = VALUES(p78), p79 = VALUES(p79), p80 = VALUES(p80), p81 = VALUES(p81), p82 = VALUES(p82), p83 = VALUES(p83), p84 = VALUES(p84), p85 = VALUES(p85), p86 = VALUES(p86), p87 = VALUES(p87), p88 = VALUES(p88), p89 = VALUES(p89), p90 = VALUES(p90), p91 = VALUES(p91), p92 = VALUES(p92), p93 = VALUES(p93), p94 = VALUES(p94), p95 = VALUES(p95), p96 = VALUES(p96), p97 = VALUES(p97), p98 = VALUES(p98), p99 = VALUES(p99), p100 = VALUES(p100);
 
@@ -350,7 +360,7 @@ SELECT f.beatmap_id, 'exit',
        CONV(HEX(REVERSE(SUBSTRING(f.`exit`, 389, 4))), 16, 10),
        CONV(HEX(REVERSE(SUBSTRING(f.`exit`, 393, 4))), 16, 10),
        CONV(HEX(REVERSE(SUBSTRING(f.`exit`, 397, 4))), 16, 10)
-FROM torii.failtime f
-JOIN torii.beatmaps b ON b.id = f.beatmap_id
+FROM @@SRC@@.failtime f
+JOIN @@SRC@@.beatmaps b ON b.id = f.beatmap_id
 WHERE f.`exit` IS NOT NULL
 ON DUPLICATE KEY UPDATE p1 = VALUES(p1), p2 = VALUES(p2), p3 = VALUES(p3), p4 = VALUES(p4), p5 = VALUES(p5), p6 = VALUES(p6), p7 = VALUES(p7), p8 = VALUES(p8), p9 = VALUES(p9), p10 = VALUES(p10), p11 = VALUES(p11), p12 = VALUES(p12), p13 = VALUES(p13), p14 = VALUES(p14), p15 = VALUES(p15), p16 = VALUES(p16), p17 = VALUES(p17), p18 = VALUES(p18), p19 = VALUES(p19), p20 = VALUES(p20), p21 = VALUES(p21), p22 = VALUES(p22), p23 = VALUES(p23), p24 = VALUES(p24), p25 = VALUES(p25), p26 = VALUES(p26), p27 = VALUES(p27), p28 = VALUES(p28), p29 = VALUES(p29), p30 = VALUES(p30), p31 = VALUES(p31), p32 = VALUES(p32), p33 = VALUES(p33), p34 = VALUES(p34), p35 = VALUES(p35), p36 = VALUES(p36), p37 = VALUES(p37), p38 = VALUES(p38), p39 = VALUES(p39), p40 = VALUES(p40), p41 = VALUES(p41), p42 = VALUES(p42), p43 = VALUES(p43), p44 = VALUES(p44), p45 = VALUES(p45), p46 = VALUES(p46), p47 = VALUES(p47), p48 = VALUES(p48), p49 = VALUES(p49), p50 = VALUES(p50), p51 = VALUES(p51), p52 = VALUES(p52), p53 = VALUES(p53), p54 = VALUES(p54), p55 = VALUES(p55), p56 = VALUES(p56), p57 = VALUES(p57), p58 = VALUES(p58), p59 = VALUES(p59), p60 = VALUES(p60), p61 = VALUES(p61), p62 = VALUES(p62), p63 = VALUES(p63), p64 = VALUES(p64), p65 = VALUES(p65), p66 = VALUES(p66), p67 = VALUES(p67), p68 = VALUES(p68), p69 = VALUES(p69), p70 = VALUES(p70), p71 = VALUES(p71), p72 = VALUES(p72), p73 = VALUES(p73), p74 = VALUES(p74), p75 = VALUES(p75), p76 = VALUES(p76), p77 = VALUES(p77), p78 = VALUES(p78), p79 = VALUES(p79), p80 = VALUES(p80), p81 = VALUES(p81), p82 = VALUES(p82), p83 = VALUES(p83), p84 = VALUES(p84), p85 = VALUES(p85), p86 = VALUES(p86), p87 = VALUES(p87), p88 = VALUES(p88), p89 = VALUES(p89), p90 = VALUES(p90), p91 = VALUES(p91), p92 = VALUES(p92), p93 = VALUES(p93), p94 = VALUES(p94), p95 = VALUES(p95), p96 = VALUES(p96), p97 = VALUES(p97), p98 = VALUES(p98), p99 = VALUES(p99), p100 = VALUES(p100);
