@@ -48,19 +48,32 @@ say "2. columnas que hay que ensanchar"
 $MYSQL < torii-schema-widen.sql
 
 # ---------------------------------------------------------------------- 3 ----
-say "3. catalogo de medallas y de grupos"
+say "3. los seeders de osu-web que SI se pueden correr"
+# osu-web reparte sus datos base entre las migraciones y unos seeders. Estos dos
+# van ANTES de todo lo nuestro, y el orden no es negociable:
+#
+#   - GroupSeeder trae los 12 grupos que Group::PRIV_IDENTIFIERS da por
+#     existentes. Sin 'no_profile', User::hasProfile() hace ->getKey() sobre null
+#     y se cae CUALQUIER pagina que muestre un usuario, o sea todo el sitio.
+#     Pero BORRA phpbb_groups entero, asi que tiene que ir antes de
+#     torii-groups.sql o se lleva puestos los quince grupos de Torii.
+#
+#   - CountrySeeder trae los 254 paises. Escribe en osu.osu_countries, que el
+#     swap del paso 5 muda a osu_bak, asi que despues del swap falla con "table
+#     doesn't exist" y el ranking por pais queda vacio sin que nadie lo note.
+#
+# MiscSeeder NO se corre: arranca borrando osu_achievements y despues inventa
+# diez medallas con factories, o sea que se lleva las 134 reales de Torii. Lo que
+# hacia falta de el esta escrito en torii-lookups.sql.
+$COMPOSE run --rm --no-deps php artisan db:seed --class='Database\Seeders\ModelSeeders\GroupSeeder' --force
+$COMPOSE run --rm --no-deps php artisan db:seed --class='Database\Seeders\ModelSeeders\CountrySeeder' --force
+
+# ---------------------------------------------------------------------- 4 ----
+say "4. catalogos: medallas, grupos de torii, generos e idiomas"
 # Las medallas salen del codigo de g0v0, no de su base, asi que van como catalogo.
 $MYSQL < torii-medals.sql
 $MYSQL < torii-groups.sql
-
-# ---------------------------------------------------------------------- 4 ----
-say "4. sembrar los paises"
-# Va ANTES del swap y no despues: el seeder escribe en osu.osu_countries, y el
-# swap la muda a osu_bak. Al reves el seeder falla con "table doesn't exist" y el
-# ranking por pais queda vacio sin que nadie lo note.
-#
-# Las migraciones NO traen los paises: hay un seeder aparte.
-$COMPOSE run --rm --no-deps php artisan db:seed --class='Database\Seeders\ModelSeeders\CountrySeeder' --force
+$MYSQL < torii-lookups.sql
 
 say "5. mover las tablas proyectadas a osu_bak"
 # Las 25 tablas que van a pasar a ser vistas se mudan en vez de borrarse: sirve
