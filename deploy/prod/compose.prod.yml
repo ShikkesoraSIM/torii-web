@@ -1,28 +1,144 @@
 # Override de PRODUCCION para el stack de osu-web en torii-eu.
 #
-# Uso (reemplaza a compose.override.yml, que es solo para la maquina local):
 #   docker compose -f compose.yaml -f deploy/prod/compose.prod.yml up -d
 #
-# Este archivo cubre solo la parte de red y entrada de trafico. APP_ENV,
-# APP_DEBUG, la ruta /_dusk y el TORII_SKIP_SESSION_VERIFICATION son de otra
-# tanda; hasta que eso este resuelto no se abre el 443 (ver el orden de pasos).
+# NUNCA sin los -f explicitos: sin ellos compose toma compose.override.yml, que
+# es el de la maquina local y trae TORII_SKIP_SESSION_VERIFICATION prendido.
+#
+# OJO con /app: aca NO se usa el volumen app-code. Ese es el workaround del bind
+# mount de Windows, donde php tarda 430 veces mas en abrir cada archivo. En Linux
+# el bind mount es a velocidad nativa, asi que se hereda el `.:/app` de
+# compose.yaml y desplegar vuelve a ser lo de siempre: commit, push, pull,
+# restart. Con el volumen habria que empujar los archivos adentro en cada deploy.
 
 services:
+  # ------------------------------------------------------------ base de datos --
+  #
+  # osu-web NO usa su propio mysql en prod: usa el de g0v0.
+  #
+  # No es una optimizacion, es la unica forma de que las vistas existan. Una
+  # vista de MySQL no cruza servidores, y las 25 tablas que osu-web comparte con
+  # el juego son vistas sobre osu_api. Con un mysqld propio volveriamos a copiar
+  # datos y a mostrar la foto de hace un rato.
+  #
+  # El aislamiento va en el usuario y no en la red: toriiweb tiene
+  # MAX_USER_CONNECTIONS 40 y sobre osu_api solo SELECT/INSERT/UPDATE/DELETE, sin
+  # DROP, sin ALTER y sin LOCK TABLES. El riesgo real para el submit de scores
+  # nunca fue la cpu (el mysqld esta al 0.26%), es que la web se coma las
+  # conexiones o deje una consulta agarrando recursos: eso ya paso con el txn
+  # leak de g0v0 que reventaba el Ban.
+  db:
+    profiles: ["apagado"]
+
+  # -------------------------------------------------------------- migraciones --
+  #
+  # Apagado, y no es opcional. Corre `artisan migrate` en cada `up`, y 25 de las
+  # tablas que quiere migrar son VISTAS. Un ALTER sobre una vista no falla
+  # prolijo. En local zafa de casualidad porque APP_ENV=production le hace pedir
+  # confirmacion y se cancela solo.
+  #
+  # Cuando ppy agrega una columna el camino es a mano y con las vistas
+  # revertidas: ver "Cuando ppy agrega una columna" en TORII-README.md.
+  migrator:
+    profiles: ["apagado"]
+
+  # ------------------------------------------------------ indexador de scores --
+  #
+  # Apagado. Arranca con SCHEMA=1, crea un indice scores_1 VACIO, se roba el
+  # alias `scores` (de donde la web lee todo lo que pasa por elasticsearch) y
+  # despues solo escucha la cola de scores nuevos: nunca hace backfill.
+  #
+  # Con el alias en un indice vacio la web no se cae, MIENTE: todos los
+  # leaderboards de mapas vacios, todos los Best Performance vacios, y cada
+  # score diciendo que es #1 del mundo, porque el rank es "1 + cuantos te ganan"
+  # y sobre cero eso da 1 siempre.
+  #
+  # Los scores los indexa torii-index-scores.php desde la tabla, por cron.
+  score-indexer:
+    profiles: ["apagado"]
+
+  score-indexer-test:
+    profiles: ["apagado"]
+
+  # Los de dusk tambien: php-dusk corre con APP_ENV=dusk.local y expone
+  # /_dusk/login/{id}, que loguea como cualquier usuario sin contrasena.
+  php-dusk:
+    profiles: ["apagado"]
+
+  notification-server-dusk:
+    profiles: ["apagado"]
+
+  # ----------------------------------------------------------------- la app --
+
+  php:
+    networks: [default, g0v0]
+    environment:
+      DB_HOST: osu_api_mysql
+      DB_USERNAME: toriiweb
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_CONNECTION_STRING: "Server=osu_api_mysql;Database=osu;Uid=toriiweb;Pwd=${DB_PASSWORD};"
+      # El esquema de g0v0 se llama osu_api en prod y torii en la maquina local.
+      # Lo leen las vistas (generadas con ese nombre adentro) y la capa de
+      # escritura de WriteThrough.
+      TORII_SOURCE_SCHEMA: osu_api
+      USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
+      # /__clockwork/latest publica la cookie de sesion del ultimo request.
+      CLOCKWORK_ENABLE: "false"
+      # Sin esto config/trustedproxy.php queda vacio y Laravel ignora todos los
+      # X-Forwarded-*: veria http en vez de https y la ip del gateway de la
+      # bridge en vez de la del usuario.
+      TRUSTED_PROXIES: "172.31.0.0/24"
+      WIKI_USER: ShikkesoraSIM
+      WIKI_REPOSITORY: torii-wiki
+      WIKI_BRANCH: main
+
+  job:
+    networks: [default, g0v0]
+    environment:
+      DB_HOST: osu_api_mysql
+      DB_USERNAME: toriiweb
+      DB_PASSWORD: "${DB_PASSWORD}"
+      TORII_SOURCE_SCHEMA: osu_api
+      USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
+      WIKI_USER: ShikkesoraSIM
+      WIKI_REPOSITORY: torii-wiki
+      WIKI_BRANCH: main
+
+  assets:
+    networks: [default, g0v0]
+    environment:
+      DB_HOST: osu_api_mysql
+      DB_USERNAME: toriiweb
+      DB_PASSWORD: "${DB_PASSWORD}"
+    # En prod los assets se compilan una vez y se sirven estaticos: no hace falta
+    # el watcher corriendo para siempre.
+    command: ["build"]
+
+  notification-server:
+    networks: [default, g0v0]
+    environment:
+      DB_HOST: osu_api_mysql
+      DB_USERNAME: toriiweb
+      DB_PASSWORD: "${DB_PASSWORD}"
+    # Es el unico servicio que corre en prod y declara depends_on db. Sin el
+    # required: false compose levanta el mysql apagado igual: un depends_on le
+    # gana al profile.
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        required: false
+
   nginx:
     volumes:
-      - app-code:/app
       # Conf de prod: sin el server de dusk (nginx no bootea si php-dusk no
-      # resuelve) y con X-Forwarded-For/Proto reales hacia octane.
+      # resuelve) y con los X-Forwarded reales hacia octane.
       - ./docker/production/nginx-default.conf:/etc/nginx/conf.d/default.conf:ro
-    # OJO: el puerto NO se define aca. "ports" es una lista y compose la MERGEA
-    # en vez de reemplazarla, asi que poner ports en este override deja las dos
-    # publicaciones (la de compose.yaml y la de aca) y en prod el contenedor no
-    # arranca porque 127.0.0.1:8080 ya lo tiene osu-iceberg-wiki-1.
-    # El puerto se define con NGINX_PORT en el .env, que compose.yaml ya
-    # sustituye: NGINX_PORT=127.0.0.1:8090
-    #
-    # compose.yaml declara depends_on php-dusk y notification-server-dusk. Si no
-    # se pisa, "up" los levanta igual aunque tengan profile.
+    # OJO: el puerto NO va aca. "ports" es una lista y compose la MERGEA en vez
+    # de reemplazarla, asi que quedarian las dos publicaciones y el contenedor no
+    # arranca. Va por NGINX_PORT en el .env, que compose.yaml ya sustituye:
+    #   NGINX_PORT=127.0.0.1:8090
+    # (8090 y no 8080 porque 127.0.0.1:8080 ya lo tiene osu-iceberg-wiki-1)
     depends_on:
       php:
         condition: service_started
@@ -33,39 +149,6 @@ services:
       notification-server-dusk:
         required: false
 
-  # Los dos servicios de dusk quedan detras de un profile, o sea que un "up"
-  # normal no los arranca. php-dusk corre con APP_ENV=dusk.local.
-  php-dusk:
-    profiles: ["dusk"]
-
-  notification-server-dusk:
-    profiles: ["dusk"]
-
-  php:
-    volumes:
-      - app-code:/app
-    environment:
-      USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
-      CLOCKWORK_ENABLE: "false"
-      # Sin esto config/trustedproxy.php queda con la lista vacia y Laravel
-      # ignora todos los X-Forwarded-*: veria http en vez de https y la ip del
-      # gateway de la bridge en vez de la del usuario.
-      TRUSTED_PROXIES: "172.31.0.0/24"
-
-  job:
-    volumes:
-      - app-code:/app
-    environment:
-      USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
-
-  assets:
-    volumes:
-      - app-code:/app
-
-  migrator:
-    volumes:
-      - app-code:/app
-
 networks:
   # Subred fija para que TRUSTED_PROXIES sea deterministico. En prod ya estan
   # tomadas 172.17.0.0/16 (bridge), 172.18 (g0v0), 172.19 (bot) y 172.20
@@ -75,5 +158,8 @@ networks:
       config:
         - subnet: 172.31.0.0/24
 
-volumes:
-  app-code:
+  # La red donde vive osu_api_mysql. Externa: la creo el compose de g0v0 y este
+  # stack no la administra.
+  g0v0:
+    external: true
+    name: g0v0-server_osu-network

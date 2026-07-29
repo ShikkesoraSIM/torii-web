@@ -75,6 +75,33 @@ services:
     volumes:
       - app-code:/app
 
+  # El indexador oficial de scores queda apagado, y NO es por prolijidad.
+  #
+  # osu-elastic-indexer arranca con SCHEMA=1, crea el indice scores_1 vacio y se
+  # queda con el alias `scores`, que es de donde la web lee TODO lo que sale de
+  # elasticsearch. Y despues corre `queue watch`, o sea que solo indexa los
+  # scores que se van encolando: nunca hace el backfill de lo que ya existe.
+  #
+  # Resultado: el alias apunta a un indice de cero documentos para siempre, y la
+  # web no tiene forma de saberlo. Se cae en silencio y de la peor manera:
+  #
+  #   - todos los leaderboards de mapas quedan vacios ("nadie jugo esto")
+  #   - el Best Performance de todos los perfiles queda vacio
+  #   - cada score dice que es #1 del mundo, porque el rank se calcula como
+  #     1 + cuantos le ganan, y sobre un indice vacio eso es siempre 1
+  #
+  # Los scores de Torii los indexa torii-index-scores.php desde la tabla, que
+  # ademas deja el alias apuntando a su propio indice. Los dos no pueden
+  # convivir peleandose el alias.
+  #
+  # profiles hace que `docker compose up` sin argumentos no lo levante. Para
+  # correrlo a mano igual: docker compose --profile apagado up score-indexer
+  score-indexer:
+    profiles: ["apagado"]
+
+  score-indexer-test:
+    profiles: ["apagado"]
+
   nginx:
     volumes:
       - app-code:/app
