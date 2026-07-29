@@ -761,6 +761,71 @@ $V['osu_user_performance_rank_highest'] = [
     ],
 ];
 
+// ---------------------------------------------------------- ranked play --
+//
+// osu-web ya trae toda la pantalla de ranked play hecha: la ruta
+// /rankings/ranked-play/{modo}/{pool}, los modelos, el selector de pool y el
+// badge de rating provisional. Lo unico que le faltaba era de donde leer, y
+// resulta que el esquema de g0v0 es casi el mismo porque salio del suyo.
+//
+// variant_id y use_dmr no existen en Torii: van en cero, que es lo que
+// significa "sin variante" y "sin dynamic match rating".
+$V['matchmaking_pools'] = [
+    'from' => "$src.matchmaking_pools p",
+    'cols' => [
+        'id' => 'p.id',
+        'ruleset_id' => 'p.ruleset_id',
+        'name' => 'p.name',
+        'type' => 'p.type',
+        'active' => 'p.active',
+        'lobby_size' => 'p.lobby_size',
+        'rating_search_radius' => 'p.rating_search_radius',
+        'rating_search_radius_max' => 'p.rating_search_radius_max',
+        'rating_search_radius_exp' => 'p.rating_search_radius_exp',
+        'created_at' => 'p.created_at',
+        'updated_at' => 'p.updated_at',
+    ],
+];
+
+// elo_data es el json con la posterior del rating: de ahi sale el sigma que
+// decide si el rating todavia es provisional.
+//
+// OJO: en g0v0 la clave primaria de esta tabla es (user_id) sola, no
+// (user_id, pool_id), asi que un jugador tiene UNA fila y no una por pool. La
+// vista lo refleja tal cual. El dia que se juegue ranked play de mas de un modo
+// hay que arreglar la tabla primero, no la vista.
+$V['matchmaking_user_stats'] = [
+    'from' => "$src.matchmaking_user_stats m",
+    'where' => 'm.pool_id IS NOT NULL',
+    'cols' => [
+        'user_id' => 'm.user_id',
+        'pool_id' => 'm.pool_id',
+        'first_placements' => 'COALESCE(m.first_placements, 0)',
+        'total_points' => 'COALESCE(m.total_points, 0)',
+        'elo_data' => 'm.elo_data',
+        'rating' => 'COALESCE(m.rating, 0)',
+        'plays' => 'COALESCE(m.plays, 0)',
+        'created_at' => 'm.created_at',
+        'updated_at' => 'm.updated_at',
+    ],
+];
+
+$V['matchmaking_user_elo_history'] = [
+    'from' => "$src.matchmaking_user_elo_history h",
+    'cols' => [
+        'id' => 'h.id',
+        'room_id' => 'h.room_id',
+        'pool_id' => 'h.pool_id',
+        'user_id' => 'h.user_id',
+        'opponent_id' => 'h.opponent_id',
+        'result' => 'h.result',
+        'elo_before' => 'h.elo_before',
+        'elo_after' => 'h.elo_after',
+        'created_at' => 'h.created_at',
+        'updated_at' => 'h.updated_at',
+    ],
+];
+
 // -------------------------------------------------------------- agregados --
 //
 // El nombre y la bandera de cada pais son catalogo de osu-web, no dato de
@@ -872,7 +937,16 @@ $missing = [];
 foreach ($V as $table => $def) {
     // Las vistas nuevas (las de relax y autopilot) no tienen tabla de donde
     // leer el layout, asi que lo piden prestado a la variante que ya existe.
-    $cols = columns($pdo, $ref, $def['like'] ?? $table);
+    // Se busca primero en el esquema de referencia y despues en el destino.
+    // Los dos hacen falta: cuando se regenera despues de mudar tablas a
+    // osu_bak, unas viven alla y otras (las que se prestan el layout, como la
+    // tabla de variante de mania) siguen en osu.
+    $layout = $def['like'] ?? $table;
+    $cols = columns($pdo, $ref, $layout);
+
+    if ($cols === [] && $ref !== $dst) {
+        $cols = columns($pdo, $dst, $layout);
+    }
 
     if ($cols === []) {
         $missing[] = "$ref.$table no existe";
@@ -908,6 +982,13 @@ foreach ($V as $table => $def) {
     }
 
     foreach ($extra as $name => $expr) {
+        // Al regenerar leyendo del propio esquema destino, las columnas extra
+        // de la corrida anterior ya vienen en la lista de la vista y se
+        // duplicarian. Las de arriba mandan: tienen la misma expresion.
+        if (in_array($name, array_column($cols, 'COLUMN_NAME'), true)) {
+            continue;
+        }
+
         $select[] = "    $expr AS `$name`";
     }
 

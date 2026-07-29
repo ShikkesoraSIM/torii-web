@@ -1,7 +1,7 @@
 -- torii: vistas que apuntan osu-web a las tablas de g0v0.
 --
 -- GENERADO por torii-views.php. No editar a mano: se regenera.
--- origen: torii   destino: osu   columnas leidas de: osu
+-- origen: torii   destino: osu   columnas leidas de: osu_bak
 
 -- ---------------------------------------------------------------------------
 -- phpbb_users
@@ -37,7 +37,7 @@ SELECT
     'en' AS `user_lang`,
     0.00 AS `user_timezone`,
     0 AS `user_dst`,
-    '' AS `user_dateformat`,
+    'd M Y H:i' AS `user_dateformat`,
     0 AS `user_style`,
     0 AS `user_rank`,
     LEFT(COALESCE(u.profile_colour, ''), 6) AS `user_colour`,
@@ -45,22 +45,22 @@ SELECT
     0 AS `user_unread_privmsg`,
     0 AS `user_last_privmsg`,
     0 AS `user_message_rules`,
-    0 AS `user_full_folder`,
+    -3 AS `user_full_folder`,
     0 AS `user_emailtime`,
     0 AS `user_topic_show_days`,
-    '' AS `user_topic_sortby_type`,
-    '' AS `user_topic_sortby_dir`,
+    't' AS `user_topic_sortby_type`,
+    'd' AS `user_topic_sortby_dir`,
     0 AS `user_post_show_days`,
-    '' AS `user_post_sortby_type`,
-    '' AS `user_post_sortby_dir`,
+    't' AS `user_post_sortby_type`,
+    'a' AS `user_post_sortby_dir`,
     0 AS `user_notify`,
-    0 AS `user_notify_pm`,
+    1 AS `user_notify_pm`,
     0 AS `user_notify_type`,
-    0 AS `user_allow_pm`,
-    0 AS `user_allow_viewonline`,
-    0 AS `user_allow_viewemail`,
-    0 AS `user_allow_massemail`,
-    0 AS `user_options`,
+    1 AS `user_allow_pm`,
+    1 AS `user_allow_viewonline`,
+    1 AS `user_allow_viewemail`,
+    1 AS `user_allow_massemail`,
+    895 AS `user_options`,
     CASE WHEN u.avatar_url LIKE 'https://lazer-api.shikkesora.com/file/avatars/%' AND (CHAR_LENGTH(SUBSTRING_INDEX(u.avatar_url, '/', -1)) - CHAR_LENGTH(REPLACE(SUBSTRING_INDEX(u.avatar_url, '/', -1), '_', ''))) = 1 THEN SUBSTRING_INDEX(u.avatar_url, '/', -1) ELSE '' END AS `user_avatar`,
     0 AS `user_avatar_type`,
     0 AS `user_avatar_width`,
@@ -471,8 +471,8 @@ SELECT
     COALESCE(c.playcount, 0) AS `playcount`,
     COALESCE(c.passcount, 0) AS `passcount`,
     NULL AS `youtube_preview`,
-    0 AS `score_version`,
-    0 AS `osu_file_version`,
+    1 AS `score_version`,
+    14 AS `osu_file_version`,
     m.deleted_at AS `deleted_at`,
     COALESCE(m.bpm, 0) AS `bpm`,
     0 AS `lazer_only`
@@ -613,7 +613,7 @@ SELECT
     NULLIF(SUBSTRING_INDEX(COALESCE(t.cover_url,''), '/', -1), '') AS `header_file`,
     LEFT(COALESCE(t.website,''), 255) AS `url`,
     t.description AS `description`,
-    0 AS `is_open`,
+    1 AS `is_open`,
     CASE t.playmode WHEN 'TAIKO' THEN 1 WHEN 'TAIKORX' THEN 1 WHEN 'FRUITS' THEN 2 WHEN 'FRUITSRX' THEN 2 WHEN 'MANIA' THEN 3 ELSE 0 END AS `default_ruleset_id`,
     t.leader_id AS `leader_id`,
     0 AS `channel_id`,
@@ -823,6 +823,64 @@ GROUP BY h.user_id, CASE h.mode WHEN 'TAIKO' THEN 1 WHEN 'TAIKORX' THEN 1 WHEN '
 ;
 
 -- ---------------------------------------------------------------------------
+-- matchmaking_pools
+-- sin dato en Torii, va el default de la columna: variant_id, use_dmr
+DROP VIEW IF EXISTS `osu`.`matchmaking_pools`;
+CREATE VIEW `osu`.`matchmaking_pools` AS
+SELECT
+    p.id AS `id`,
+    p.ruleset_id AS `ruleset_id`,
+    0 AS `variant_id`,
+    p.name AS `name`,
+    p.type AS `type`,
+    p.active AS `active`,
+    p.lobby_size AS `lobby_size`,
+    p.rating_search_radius AS `rating_search_radius`,
+    p.rating_search_radius_max AS `rating_search_radius_max`,
+    p.rating_search_radius_exp AS `rating_search_radius_exp`,
+    1 AS `use_dmr`,
+    p.created_at AS `created_at`,
+    p.updated_at AS `updated_at`
+FROM torii.matchmaking_pools p
+;
+
+-- ---------------------------------------------------------------------------
+-- matchmaking_user_stats
+DROP VIEW IF EXISTS `osu`.`matchmaking_user_stats`;
+CREATE VIEW `osu`.`matchmaking_user_stats` AS
+SELECT
+    m.user_id AS `user_id`,
+    m.pool_id AS `pool_id`,
+    COALESCE(m.first_placements, 0) AS `first_placements`,
+    COALESCE(m.total_points, 0) AS `total_points`,
+    m.elo_data AS `elo_data`,
+    m.created_at AS `created_at`,
+    m.updated_at AS `updated_at`,
+    COALESCE(m.rating, 0) AS `rating`,
+    COALESCE(m.plays, 0) AS `plays`
+FROM torii.matchmaking_user_stats m
+WHERE m.pool_id IS NOT NULL
+;
+
+-- ---------------------------------------------------------------------------
+-- matchmaking_user_elo_history
+DROP VIEW IF EXISTS `osu`.`matchmaking_user_elo_history`;
+CREATE VIEW `osu`.`matchmaking_user_elo_history` AS
+SELECT
+    h.id AS `id`,
+    h.room_id AS `room_id`,
+    h.pool_id AS `pool_id`,
+    h.user_id AS `user_id`,
+    h.opponent_id AS `opponent_id`,
+    h.result AS `result`,
+    h.elo_before AS `elo_before`,
+    h.elo_after AS `elo_after`,
+    h.created_at AS `created_at`,
+    h.updated_at AS `updated_at`
+FROM torii.matchmaking_user_elo_history h
+;
+
+-- ---------------------------------------------------------------------------
 -- osu_countries
 -- sin dato en Torii, va el default de la columna: shipping_rate
 DROP VIEW IF EXISTS `osu`.`osu_countries`;
@@ -835,7 +893,7 @@ SELECT
     COALESCE(c.usercount, 0) AS `usercount`,
     COALESCE(c.pp, 0) AS `pp`,
     b.display AS `display`,
-    0 AS `shipping_rate`
+    1 AS `shipping_rate`
 FROM osu.torii_country_catalog b LEFT JOIN ( SELECT COALESCE(NULLIF(u.country_code,''),'XX') AS acronym, COUNT(*) AS usercount, SUM(COALESCE(s.play_count,0)) AS playcount, SUM(COALESCE(s.ranked_score,0)) AS rankedscore, SUM(COALESCE(s.pp,0)) AS pp FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id WHERE s.mode = 'OSU' GROUP BY 1) c ON c.acronym = b.acronym
 ;
 
