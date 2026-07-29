@@ -244,7 +244,6 @@ pinning.
 **Los dos logos de la barra estan en `position: absolute`**, asi que no reservan
 ancho y cualquier cosa que se agregue al lado les cae encima.
 
-## Seguridad de la instancia
 
 `/_dusk/login/{id}` loguea como cualquiera de los 791 usuarios sin contrasena y
 `/__clockwork/latest` publicaba la cookie de sesion del ultimo request a
@@ -252,8 +251,33 @@ cualquier anonimo. Clockwork quedo apagado y nginx publica solo en loopback
 (`NGINX_PORT=127.0.0.1:8080`). La ruta de dusk se deja porque es justo lo que
 hace falta para probar como otro usuario, y ya no es alcanzable desde afuera.
 
-## Que no se copio
+## Seguridad de la instancia
 
+Habia DOS vias de autenticacion total, no una.
+
+**`/_dusk/login/{id}`** te loguea como cualquiera de los 791 usuarios sin
+contrasena. La registra `laravel/dusk` dentro de un `if (! environment('production'))`,
+asi que se cierra sola con `APP_ENV=production`.
+
+**`/_lio/*`**, 28 endpoints, es la peor y NO se cierra con production. Firman la
+url con HMAC contra `SHARED_INTEROP_SECRET`, y con esa variable vacia la firma
+es forjable por cualquiera: da cualquier grupo incluido admin, borra teams y
+beatmapsets, crea usuarios y mata sesiones. Comprobado reproduciendo el
+`hash_hmac` con clave vacia. Aca no hay ningun servicio legacy que los llame,
+asi que se cierran de plano en nginx (`location ^~ /_lio/ { return 404; }`) y
+ademas se setea el secreto como segunda linea de defensa.
+
+Con `APP_DEBUG=true` cualquier error 500 renderizaba el stacktrace y TODAS las
+variables de entorno, incluida la clave de la app.
+
+Estado verificado: dusk 404, ignition 404, clockwork 404, y `/_lio/` responde
+153 bytes desde nginx contra los 106 KB que devuelve una 404 de Laravel, o sea
+que ni llega a php.
+
+`/_dusk/login/{id}` se deja documentada porque es justo lo que hace falta para
+probar como otro usuario en local, y con production no existe.
+
+## Que no se copio
 Correo, contrasena e ip de los jugadores. Es una instancia de prueba y no hay
 razon para meterle credenciales reales.
 
