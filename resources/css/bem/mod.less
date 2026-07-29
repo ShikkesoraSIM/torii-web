@@ -199,7 +199,11 @@
     mask-repeat: no-repeat;
     margin-left: -0.5em;
     padding-left: 0.5em;
-    font-weight: 700;
+    // torii: bajado de 700. Esta etiqueta vive adentro de una mascara svg de
+    // ancho fijo, asi que el texto tiene que entrar si o si. Torus es mas
+    // angosta que Rubik al mismo cuerpo y aca entraba raspando; con Rubik en 700
+    // un valor de siete caracteres como "OD11.0" se desbordaba.
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -209,7 +213,8 @@
     padding-bottom: 1px;
 
     span {
-      font-size: 0.5em;
+      font-size: 0.44em;
+      letter-spacing: -0.02em;
     }
   }
 }

@@ -253,7 +253,11 @@ return [
         'server_status' => 'https://status.ppy.sh',
         'smilies' => '/forum/images/smilies',
         'social.twitter' => '/wiki/Twitter',
-        'source_code' => 'https://github.com/ppy',
+        // torii: osu-web es AGPL-3.0-or-later y la clausula 13 obliga a
+        // ofrecerle a cualquiera que use el sitio por red el codigo fuente de
+        // ESTA version, la modificada. Apuntar a github.com/ppy no cumple:
+        // ese es el codigo de ellos, no el que corre aca.
+        'source_code' => presence(env('OSU_URL_SOURCE_CODE')) ?? 'https://github.com/ShikkesoraSIM/torii-web',
         'testflight.public' => env('TESTFLIGHT_LINK'),
         'testflight.supporter' => env('TESTFLIGHT_LINK_SUPPORTER'),
         'user.recover' => '/wiki/Help_centre/Account#sign-in',

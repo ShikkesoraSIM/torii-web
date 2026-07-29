@@ -1,0 +1,65 @@
+# ATENCION: este archivo es SOLO para la instancia local de evaluacion.
+#
+# docker compose lo levanta solo cuando no le pasas -f. En produccion hay que
+# invocar SIEMPRE con los archivos explicitos:
+#
+#     docker compose -f compose.yaml -f deploy/prod/compose.prod.yml up -d
+#
+# Si se cuela en produccion, TORII_SKIP_SESSION_VERIFICATION desactiva la
+# verificacion de sesion para los usuarios privilegiados.
+
+# torii: /app deja de ser un bind mount de Windows y pasa a un volumen de Docker.
+#
+# Por que: Docker Desktop traduce cada lectura de archivo entre Windows y Linux,
+# y PHP abre miles de archivos por request. Medido en esta maquina, leer 2000
+# archivos del codigo tarda 16.9s por el bind mount y 0.039s dentro del
+# contenedor. Eso son 430x, y es lo que hacia que un perfil tardara 60 segundos.
+#
+# El SETUP.md de osu-web dice de poner el repo dentro del filesystem de WSL2.
+# Aca no hay ninguna distro de WSL instalada, y un volumen consigue lo mismo sin
+# instalar nada.
+#
+# El precio: editar codigo desde Windows ya NO se refleja solo. Para una
+# evaluacion (mirar, no editar) da igual, y si despues hay que tocar algo se
+# resincroniza el volumen.
+
+#
+# USER_ACHIEVEMENT_ICON_PREFIX va como variable del contenedor y no en el .env
+# del repo: /app es un volumen, asi que el .env de Windows nunca llega adentro.
+# El default de osu-web apunta a assets.ppy.sh/user-achievements/, que da 404 en
+# las 144 medallas; medals/web las tiene todas (medido, 0 de 144 faltan).
+
+services:
+  php:
+    volumes:
+      - app-code:/app
+    environment:
+      USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
+      # /__clockwork/latest publica la cookie de sesion del ultimo request a
+      # cualquiera que la pida.
+      CLOCKWORK_ENABLE: "false"
+      # Aca no hay correo real: el codigo de verificacion va al log. Y salta
+      # siempre porque los grupos de Torii se proyectaron y el admin cuenta
+      # como privilegiado.
+      TORII_SKIP_SESSION_VERIFICATION: "true"
+
+  assets:
+    volumes:
+      - app-code:/app
+
+  job:
+    volumes:
+      - app-code:/app
+    environment:
+      USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
+
+  migrator:
+    volumes:
+      - app-code:/app
+
+  nginx:
+    volumes:
+      - app-code:/app
+
+volumes:
+  app-code:

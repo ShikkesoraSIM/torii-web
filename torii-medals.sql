@@ -1,0 +1,167 @@
+-- torii: catalogo de medallas.
+--
+-- g0v0 no las guarda en la base, las tiene en app/achievements/*.py, asi que
+-- este archivo sale de parsear esas definiciones con AST. osu-web si necesita la
+-- fila para dibujar el nombre, la descripcion y la imagen de cada medalla.
+--
+-- Dos cosas que no son obvias:
+--
+-- `grouping` es la seccion de la pagina y `ordering` es la FILA dentro de esa
+-- seccion: osu-web abre un renglon nuevo por cada valor distinto de ordering.
+-- Con todo en 1 quedaba un solo renglon larguisimo por seccion. `progression`
+-- ordena las medallas adentro del renglon.
+--
+-- La columna `image` no la mira nadie: la url del icono la arma
+-- Achievement::iconUrl() como prefijo de config mas slug mas .png. El prefijo va
+-- como variable de entorno en compose.override.yml, porque el default de
+-- osu-web apunta a assets.ppy.sh/user-achievements/ y ahi las 144 dan 404.
+--
+-- Generado, no editar a mano.
+
+INSERT INTO osu.osu_achievements
+    (achievement_id, name, description, slug, image, `grouping`, ordering, progression, enabled)
+VALUES
+(1,'Rising Star','Can''t go forward without the first steps.','osu-skill-pass-1','osu-skill-pass-1.png','Skill',1,1,1),
+(2,'Constellation Prize','Definitely not a consolation prize. Now things start getting hard!','osu-skill-pass-2','osu-skill-pass-2.png','Skill',1,2,1),
+(3,'Building Confidence','Oh, you''ve SO got this.','osu-skill-pass-3','osu-skill-pass-3.png','Skill',1,3,1),
+(4,'Insanity Approaches','You''re not twitching, you''re just ready.','osu-skill-pass-4','osu-skill-pass-4.png','Skill',1,4,1),
+(5,'These Clarion Skies','Everything seems so clear now.','osu-skill-pass-5','osu-skill-pass-5.png','Skill',1,5,1),
+(6,'Above and Beyond','A cut above the rest.','osu-skill-pass-6','osu-skill-pass-6.png','Skill',1,6,1),
+(7,'Supremacy','All marvel before your prowess.','osu-skill-pass-7','osu-skill-pass-7.png','Skill',1,7,1),
+(8,'Absolution','My god, you''re full of stars!','osu-skill-pass-8','osu-skill-pass-8.png','Skill',1,8,1),
+(9,'Event Horizon','No force dares to pull you under.','osu-skill-pass-9','osu-skill-pass-9.png','Skill',1,9,1),
+(10,'Phantasm','Fevered is your passion, extraordinary is your skill.','osu-skill-pass-10','osu-skill-pass-10.png','Skill',1,10,1),
+(11,'Totality','All the notes. Every single one.','osu-skill-fc-1','osu-skill-fc-1.png','Skill',2,1,1),
+(12,'Business As Usual','Two to go, please.','osu-skill-fc-2','osu-skill-fc-2.png','Skill',2,2,1),
+(13,'Building Steam','Hey, this isn''t so bad.','osu-skill-fc-3','osu-skill-fc-3.png','Skill',2,3,1),
+(14,'Moving Forward','Bet you feel good about that.','osu-skill-fc-4','osu-skill-fc-4.png','Skill',2,4,1),
+(15,'Paradigm Shift','Surprisingly difficult.','osu-skill-fc-5','osu-skill-fc-5.png','Skill',2,5,1),
+(16,'Anguish Quelled','Don''t choke.','osu-skill-fc-6','osu-skill-fc-6.png','Skill',2,6,1),
+(17,'Never Give Up','Excellence is its own reward.','osu-skill-fc-7','osu-skill-fc-7.png','Skill',2,7,1),
+(18,'Aberration','They said it couldn''t be done. They were wrong.','osu-skill-fc-8','osu-skill-fc-8.png','Skill',2,8,1),
+(19,'Chosen','Reign among the Prometheans, where you belong.','osu-skill-fc-9','osu-skill-fc-9.png','Skill',2,9,1),
+(20,'Unfathomable','You have no equal.','osu-skill-fc-10','osu-skill-fc-10.png','Skill',2,10,1),
+(21,'500 Combo','500 big ones! You''''re moving up in the world!','osu-combo-500','osu-combo-500.png','Skill',3,1,1),
+(22,'750 Combo','750 notes back to back? Woah.','osu-combo-750','osu-combo-750.png','Skill',3,2,1),
+(23,'1000 Combo','A thousand reasons why you rock at this game.','osu-combo-1000','osu-combo-1000.png','Skill',3,3,1),
+(24,'2000 Combo','Nothing can stop you now.','osu-combo-2000','osu-combo-2000.png','Skill',3,4,1),
+(25,'My First Don','Marching to the beat of your own drum. Literally.','taiko-skill-pass-1','taiko-skill-pass-1.png','Skill',4,1,1),
+(26,'Katsu Katsu Katsu','Hora! Izuko!','taiko-skill-pass-2','taiko-skill-pass-2.png','Skill',4,2,1),
+(27,'Not Even Trying','Muzukashii? Not even.','taiko-skill-pass-3','taiko-skill-pass-3.png','Skill',4,3,1),
+(28,'Face Your Demons','The first trials are now behind you, but are you a match for the Oni?','taiko-skill-pass-4','taiko-skill-pass-4.png','Skill',4,4,1),
+(29,'The Demon Within','No rest for the wicked.','taiko-skill-pass-5','taiko-skill-pass-5.png','Skill',4,5,1),
+(30,'Drumbreaker','Too strong.','taiko-skill-pass-6','taiko-skill-pass-6.png','Skill',4,6,1),
+(31,'The Godfather','You are the Don of Dons.','taiko-skill-pass-7','taiko-skill-pass-7.png','Skill',4,7,1),
+(32,'Rhythm Incarnate','Feel the beat. Become the beat.','taiko-skill-pass-8','taiko-skill-pass-8.png','Skill',4,8,1),
+(33,'Keeping Time','Don, then katsu. Don, then katsu..','taiko-skill-fc-1','taiko-skill-fc-1.png','Skill',5,1,1),
+(34,'To Your Own Beat','Straight and steady.','taiko-skill-fc-2','taiko-skill-fc-2.png','Skill',5,2,1),
+(35,'Big Drums','Bigger scores to match.','taiko-skill-fc-3','taiko-skill-fc-3.png','Skill',5,3,1),
+(36,'Adversity Overcome','Difficult? Not for you.','taiko-skill-fc-4','taiko-skill-fc-4.png','Skill',5,4,1),
+(37,'Demonslayer','An Oni felled forevermore.','taiko-skill-fc-5','taiko-skill-fc-5.png','Skill',5,5,1),
+(38,'Rhythm''s Call','Heralding true skill.','taiko-skill-fc-6','taiko-skill-fc-6.png','Skill',5,6,1),
+(39,'Time Everlasting','Not a single beat escapes you.','taiko-skill-fc-7','taiko-skill-fc-7.png','Skill',5,7,1),
+(40,'The Drummer''s Throne','Percussive brilliance befitting royalty alone.','taiko-skill-fc-8','taiko-skill-fc-8.png','Skill',5,8,1),
+(41,'A Slice Of Life','Hey, this fruit catching business isn''t bad.','fruits-skill-pass-1','fruits-skill-pass-1.png','Skill',6,1,1),
+(42,'Dashing Ever Forward','Fast is how you do it.','fruits-skill-pass-2','fruits-skill-pass-2.png','Skill',6,2,1),
+(43,'Zesty Disposition','No scurvy for you, not with that much fruit.','fruits-skill-pass-3','fruits-skill-pass-3.png','Skill',6,3,1),
+(44,'Hyperdash ON!','Time and distance is no obstacle to you.','fruits-skill-pass-4','fruits-skill-pass-4.png','Skill',6,4,1),
+(45,'It''s Raining Fruit','And you can catch them all.','fruits-skill-pass-5','fruits-skill-pass-5.png','Skill',6,5,1),
+(46,'Fruit Ninja','Legendary techniques.','fruits-skill-pass-6','fruits-skill-pass-6.png','Skill',6,6,1),
+(47,'Dreamcatcher','No fruit, only dreams now.','fruits-skill-pass-7','fruits-skill-pass-7.png','Skill',6,7,1),
+(48,'Lord of the Catch','Your kingdom kneels before you.','fruits-skill-pass-8','fruits-skill-pass-8.png','Skill',6,8,1),
+(49,'Sweet And Sour','Apples and oranges, literally.','fruits-skill-fc-1','fruits-skill-fc-1.png','Skill',7,1,1),
+(50,'Reaching The Core','The seeds of future success.','fruits-skill-fc-2','fruits-skill-fc-2.png','Skill',7,2,1),
+(51,'Clean Platter','Clean only of failure. It is completely full, otherwise.','fruits-skill-fc-3','fruits-skill-fc-3.png','Skill',7,3,1),
+(52,'Between The Rain','No umbrella needed.','fruits-skill-fc-4','fruits-skill-fc-4.png','Skill',7,4,1),
+(53,'Addicted','That was an overdose?','fruits-skill-fc-5','fruits-skill-fc-5.png','Skill',7,5,1),
+(54,'Quickening','A dash above normal limits.','fruits-skill-fc-6','fruits-skill-fc-6.png','Skill',7,6,1),
+(55,'Supersonic','Faster than is reasonably necessary.','fruits-skill-fc-7','fruits-skill-fc-7.png','Skill',7,7,1),
+(56,'Dashing Scarlet','Speed beyond mortal reckoning.','fruits-skill-fc-8','fruits-skill-fc-8.png','Skill',7,8,1),
+(57,'First Steps','It isn''t 9-to-5, but 1-to-9. Keys, that is.','mania-skill-pass-1','mania-skill-pass-1.png','Skill',8,1,1),
+(58,'No Normal Player','Not anymore, at least.','mania-skill-pass-2','mania-skill-pass-2.png','Skill',8,2,1),
+(59,'Impulse Drive','Not quite hyperspeed, but getting close.','mania-skill-pass-3','mania-skill-pass-3.png','Skill',8,3,1),
+(60,'Hyperspeed','Woah.','mania-skill-pass-4','mania-skill-pass-4.png','Skill',8,4,1),
+(61,'Ever Onwards','Another challenge is just around the corner.','mania-skill-pass-5','mania-skill-pass-5.png','Skill',8,5,1),
+(62,'Another Surpassed','Is there no limit to your skills?','mania-skill-pass-6','mania-skill-pass-6.png','Skill',8,6,1),
+(63,'Extra Credit','See me after class.','mania-skill-pass-7','mania-skill-pass-7.png','Skill',8,7,1),
+(64,'Maniac','There''s just no stopping you.','mania-skill-pass-8','mania-skill-pass-8.png','Skill',8,8,1),
+(65,'Keystruck','The beginning of a new story','mania-skill-fc-1','mania-skill-fc-1.png','Skill',9,1,1),
+(66,'Keying In','Finding your groove.','mania-skill-fc-2','mania-skill-fc-2.png','Skill',9,2,1),
+(67,'Hyperflow','You can *feel* the rhythm.','mania-skill-fc-3','mania-skill-fc-3.png','Skill',9,3,1),
+(68,'Breakthrough','Many skills mastered, rolled into one.','mania-skill-fc-4','mania-skill-fc-4.png','Skill',9,4,1),
+(69,'Everything Extra','Giving your all is giving everything you have.','mania-skill-fc-5','mania-skill-fc-5.png','Skill',9,5,1),
+(70,'Level Breaker','Finesse beyond reason','mania-skill-fc-6','mania-skill-fc-6.png','Skill',9,6,1),
+(71,'Step Up','A precipice rarely seen.','mania-skill-fc-7','mania-skill-fc-7.png','Skill',9,7,1),
+(72,'Behind The Veil','Supernatural!','mania-skill-fc-8','mania-skill-fc-8.png','Skill',9,8,1),
+(73,'5,000 Plays','There''s a lot more where that came from','osu-plays-5000','osu-plays-5000.png','Dedication',1,1,1),
+(74,'15,000 Plays','Must.. click.. circles..','osu-plays-15000','osu-plays-15000.png','Dedication',1,2,1),
+(75,'25,000 Plays','There''s no going back.','osu-plays-25000','osu-plays-25000.png','Dedication',1,3,1),
+(76,'50,000 Plays','You''re here forever.','osu-plays-50000','osu-plays-50000.png','Dedication',1,4,1),
+(77,'30,000 Drum Hits','Did that drum have a face?','taiko-hits-30000','taiko-hits-30000.png','Dedication',2,1,1),
+(78,'300,000 Drum Hits','The rhythm never stops.','taiko-hits-300000','taiko-hits-300000.png','Dedication',2,2,1),
+(79,'3,000,000 Drum Hits','Truly, the Don of dons.','taiko-hits-3000000','taiko-hits-3000000.png','Dedication',2,3,1),
+(80,'30,000,000 Drum Hits','Your rhythm, eternal.','taiko-hits-30000000','taiko-hits-30000000.png','Dedication',2,4,1),
+(81,'Catch 20,000 fruits','That is a lot of dietary fiber.','fruits-hits-20000','fruits-hits-20000.png','Dedication',3,1,1),
+(82,'Catch 200,000 fruits','So, I heard you like fruit...','fruits-hits-200000','fruits-hits-200000.png','Dedication',3,2,1),
+(83,'Catch 2,000,000 fruits','Downright healthy.','fruits-hits-2000000','fruits-hits-2000000.png','Dedication',3,3,1),
+(84,'Catch 20,000,000 fruits','Nothing left behind.','fruits-hits-20000000','fruits-hits-20000000.png','Dedication',3,4,1),
+(85,'40,000 Keys','Just the start of the rainbow.','mania-hits-40000','mania-hits-40000.png','Dedication',4,1,1),
+(86,'400,000 Keys','Four hundred thousand and still not even close.','mania-hits-400000','mania-hits-400000.png','Dedication',4,2,1),
+(87,'4,000,000 Keys','Is this the end of the rainbow?','mania-hits-4000000','mania-hits-4000000.png','Dedication',4,3,1),
+(88,'40,000,000 Keys','When someone asks which keys you play, the answer is now ''yes''.','mania-hits-40000000','mania-hits-40000000.png','Dedication',4,4,1),
+(89,'Finality','High stakes, no regrets.','all-intro-suddendeath','all-intro-suddendeath.png','Mod Introduction',1,1,1),
+(90,'Perfectionist','Accept nothing but the best.','all-intro-perfect','all-intro-perfect.png','Mod Introduction',1,2,1),
+(91,'Rock Around The Clock','You can''t stop the rock.','all-intro-hardrock','all-intro-hardrock.png','Mod Introduction',1,3,1),
+(92,'Time And A Half','Having a right ol'' time. One and a half of them, almost.','all-intro-doubletime','all-intro-doubletime.png','Mod Introduction',1,4,1),
+(93,'Sweet Rave Party','Founded in the fine tradition of changing things that were just fine as they were.','all-intro-nightcore','all-intro-nightcore.png','Mod Introduction',1,5,1),
+(94,'Blindsight','I can see just perfectly.','all-intro-hidden','all-intro-hidden.png','Mod Introduction',1,6,1),
+(95,'Are You Afraid Of The Dark?','Harder than it looks, probably because it''s hard to look.','all-intro-flashlight','all-intro-flashlight.png','Mod Introduction',1,7,1),
+(96,'Dial It Right Back','Sometimes you just want to take it easy.','all-intro-easy','all-intro-easy.png','Mod Introduction',1,8,1),
+(97,'Risk Averse','Safety nets are fun!','all-intro-nofail','all-intro-nofail.png','Mod Introduction',1,9,1),
+(98,'Slowboat','You got there. Eventually.','all-intro-halftime','all-intro-halftime.png','Mod Introduction',1,10,1),
+(99,'Burned Out','One cannot always spin to win.','all-intro-spunout','all-intro-spunout.png','Mod Introduction',1,11,1),
+(100,'Gear Shift','Tailor your experience to your perfect fit.','all-intro-conversion','all-intro-conversion.png','Mod Introduction',1,12,1),
+(101,'Game Night','Mum said it''s my turn with the beatmap!','all-intro-fun','all-intro-fun.png','Mod Introduction',1,13,1),
+(102,'Daily Sprout','Ready for anything.','all-skill-dc-1','all-skill-dc-1.png','Dedication',5,1,1),
+(103,'Weekly Sapling','Circadian rhythm calibrated.','all-skill-dc-7','all-skill-dc-7.png','Dedication',5,2,1),
+(104,'Monthly Shrub','In for the grind.','all-skill-dc-30','all-skill-dc-30.png','Dedication',5,3,1),
+(105,'Jackpot','Lucky sevens is a mild understatement.','all-secret-jackpot','all-secret-jackpot.png','Hush-Hush',1,1,1),
+(106,'Nonstop','Breaks? What are those?','all-secret-nonstop','all-secret-nonstop.png','Hush-Hush',1,2,1),
+(107,'Time Dilation','Longer is shorter when all is said and done.','all-secret-tidi','all-secret-tidi.png','Hush-Hush',1,3,1),
+(108,'To The Core','In for a penny, in for a pound. Pounding bass, that is.','all-secret-tothecore','all-secret-tothecore.png','Hush-Hush',1,4,1),
+(109,'When You See It','Three numbers which will haunt you forevermore.','all-secret-when-you-see-it','all-secret-when-you-see-it.png','Hush-Hush',1,5,1),
+(110,'Prepared','Do it for real next time.','all-secret-prepared','all-secret-prepared.png','Hush-Hush',1,6,1),
+(111,'Reckless Abandon','Throw it all to the wind.','all-secret-reckless','all-secret-reckless.png','Hush-Hush',1,7,1),
+(112,'Lights Out','The party''s just getting started.','all-secret-lightsout','all-secret-lightsout.png','Hush-Hush',1,8,1),
+(113,'Camera Shy','Stop being cute.','all-secret-uguushy','all-secret-uguushy.png','Hush-Hush',1,9,1),
+(114,'The Sun of All Fears','Unfortunate.','all-secret-nuked','all-secret-nuked.png','Hush-Hush',1,10,1),
+(115,'Hour Before The Down','Eleven skies of everlasting sunrise.','all-secret-hourbeforethedawn','all-secret-hourbeforethedawn.png','Hush-Hush',1,11,1),
+(116,'Slow And Steady','Win the race, or start again.','all-secret-slowandsteady','all-secret-slowandsteady.png','Hush-Hush',1,12,1),
+(117,'No Time To Spare','Places to be, things to do.','all-secret-ntts','all-secret-ntts.png','Hush-Hush',1,13,1),
+(118,'Sognare','A dream in stop-motion, soon forever gone.','all-secret-sognare','all-secret-sognare.png','Hush-Hush',1,14,1),
+(119,'Realtor Extraordinaire','An acre-wide stride.','all-secret-realtor','all-secret-realtor.png','Hush-Hush',1,15,1),
+(120,'Impeccable','Speed matters not to the exemplary.','all-secret-impeccable','all-secret-impeccable.png','Hush-Hush',1,16,1),
+(121,'Aeon','In the mire of thawing time, memory shall be your guide.','all-secret-aeon','all-secret-aeon.png','Hush-Hush',1,17,1),
+(122,'Quick Maths','Beats per minute over... this isn''t quick at all!','all-secret-quickmaffs','all-secret-quickmaffs.png','Hush-Hush',1,18,1),
+(123,'Kaleidoscope','So many pretty colours. Most of them red.','all-secret-kaleidoscope','all-secret-kaleidoscope.png','Hush-Hush',1,19,1),
+(124,'Valediction','One last time.','all-secret-valediction','all-secret-valediction.png','Hush-Hush',1,20,1),
+(127,'Right On Time','The first minute is always the hardest.','all-secret-rightontime','all-secret-rightontime.png','Hush-Hush',1,21,1),
+(128,'Not Again','Regret everything.','all-secret-notagain','all-secret-notagain.png','Hush-Hush',1,22,1),
+(129,'Deliberation','The challenge remains.','all-secret-deliberation','all-secret-deliberation.png','Hush-Hush',1,23,1),
+(130,'Clarity','And yet in our memories, you remain crystal clear.','all-secret-clarity','all-secret-clarity.png','Hush-Hush',1,24,1),
+(131,'Autocreation','Absolute rule.','all-secret-autocreation','all-secret-autocreation.png','Hush-Hush',1,25,1),
+(132,'Value Your Identity','As perfect as you are.','all-secret-identity','all-secret-identity.png','Hush-Hush',1,26,1),
+(133,'By The Skin Of The Teeth','You''re that accurate.','all-secret-skinoftheteeth','all-secret-skinoftheteeth.png','Hush-Hush',1,27,1),
+(134,'Meticulous Mayhem','How did we get here?','all-secret-meticulousmayhem','all-secret-meticulousmayhem.png','Hush-Hush',1,28,1),
+(135,'Can He Even Hear Anything?','Tuned to the heavens — for better or for much, much worse.','all-secret-tothecore','all-secret-tothecore.png','Hush-Hush',1,29,1),
+(136,'From The Abyss','Tuned to depths the surface was never meant to hear.','all-secret-aeon','all-secret-aeon.png','Hush-Hush',1,30,1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name), description = VALUES(description), image = VALUES(image),
+    `grouping` = VALUES(`grouping`), ordering = VALUES(ordering),
+    progression = VALUES(progression);
+
+-- osu-web viene con diez medallas de relleno generadas con faker ("Decentralized
+-- disintermediate benchmark" y companiia). Nadie las tiene desbloqueadas y no
+-- son de Torii, asi que se van. Se borra por diferencia contra el catalogo real
+-- para que siga andando si el seed cambia.
+DELETE FROM osu.osu_achievements WHERE achievement_id NOT IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,127,128,129,130,131,132,133,134,135,136);

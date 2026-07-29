@@ -1,0 +1,15 @@
+# Bloque a APENDEAR al final de /home/toriiadm/caddy/Caddyfile en torii-eu.
+#
+# Mismo patron que los 5 nombres que ya estan: Caddy termina el TLS en :443 y
+# reversea a 172.17.0.1:80, que es el nginx del host (gateway de la bridge por
+# defecto, que es la red donde vive caddy_tls). Caddy preserva el Host, asi que
+# el server_name del nginx del host es lo que enruta.
+#
+# Sin timeouts ni limites propios a proposito: Caddy v2 no tiene timeout de
+# proxy por defecto y el feed de notificaciones de osu-web es un websocket
+# largo. Poner read_timeout aca lo cortaria.
+
+torii-web.shikkesora.com {
+    encode zstd gzip
+    reverse_proxy 172.17.0.1:80
+}

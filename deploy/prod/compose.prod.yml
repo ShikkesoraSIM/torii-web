@@ -1,0 +1,79 @@
+# Override de PRODUCCION para el stack de osu-web en torii-eu.
+#
+# Uso (reemplaza a compose.override.yml, que es solo para la maquina local):
+#   docker compose -f compose.yaml -f deploy/prod/compose.prod.yml up -d
+#
+# Este archivo cubre solo la parte de red y entrada de trafico. APP_ENV,
+# APP_DEBUG, la ruta /_dusk y el TORII_SKIP_SESSION_VERIFICATION son de otra
+# tanda; hasta que eso este resuelto no se abre el 443 (ver el orden de pasos).
+
+services:
+  nginx:
+    volumes:
+      - app-code:/app
+      # Conf de prod: sin el server de dusk (nginx no bootea si php-dusk no
+      # resuelve) y con X-Forwarded-For/Proto reales hacia octane.
+      - ./docker/production/nginx-default.conf:/etc/nginx/conf.d/default.conf:ro
+    # OJO: el puerto NO se define aca. "ports" es una lista y compose la MERGEA
+    # en vez de reemplazarla, asi que poner ports en este override deja las dos
+    # publicaciones (la de compose.yaml y la de aca) y en prod el contenedor no
+    # arranca porque 127.0.0.1:8080 ya lo tiene osu-iceberg-wiki-1.
+    # El puerto se define con NGINX_PORT en el .env, que compose.yaml ya
+    # sustituye: NGINX_PORT=127.0.0.1:8090
+    #
+    # compose.yaml declara depends_on php-dusk y notification-server-dusk. Si no
+    # se pisa, "up" los levanta igual aunque tengan profile.
+    depends_on:
+      php:
+        condition: service_started
+      notification-server:
+        condition: service_started
+      php-dusk:
+        required: false
+      notification-server-dusk:
+        required: false
+
+  # Los dos servicios de dusk quedan detras de un profile, o sea que un "up"
+  # normal no los arranca. php-dusk corre con APP_ENV=dusk.local.
+  php-dusk:
+    profiles: ["dusk"]
+
+  notification-server-dusk:
+    profiles: ["dusk"]
+
+  php:
+    volumes:
+      - app-code:/app
+    environment:
+      USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
+      CLOCKWORK_ENABLE: "false"
+      # Sin esto config/trustedproxy.php queda con la lista vacia y Laravel
+      # ignora todos los X-Forwarded-*: veria http en vez de https y la ip del
+      # gateway de la bridge en vez de la del usuario.
+      TRUSTED_PROXIES: "172.31.0.0/24"
+
+  job:
+    volumes:
+      - app-code:/app
+    environment:
+      USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
+
+  assets:
+    volumes:
+      - app-code:/app
+
+  migrator:
+    volumes:
+      - app-code:/app
+
+networks:
+  # Subred fija para que TRUSTED_PROXIES sea deterministico. En prod ya estan
+  # tomadas 172.17.0.0/16 (bridge), 172.18 (g0v0), 172.19 (bot) y 172.20
+  # (iceberg); 172.31.0.0/24 esta libre.
+  default:
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
+
+volumes:
+  app-code:

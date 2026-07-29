@@ -86,3 +86,7 @@ composer-installer
 
 /database/ip2asn/*.idx
 /database/ip2asn/*.tsv
+
+# torii: copias de los originales de ppy que se pisaron (logos, favicons).
+# git ya los tiene en el historial, estas son de comodidad local.
+*.ppy-orig

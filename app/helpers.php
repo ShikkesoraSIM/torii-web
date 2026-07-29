@@ -1989,14 +1989,19 @@ function mini_asset(string $url): string
 
 function section_to_hue_map($section): int
 {
+    // torii: un solo tono para todo el sitio, 275, el mismo que usa el frontend
+    // de produccion. osu!web cambia el tono por seccion (rosa 333 en community,
+    // azul en beatmaps, verde en rankings) y eso es una de sus señas mas
+    // reconocibles: la pagina se siente otra pagina segun donde estas parado.
+    // Para volver al comportamiento original alcanza con restituir esta tabla.
     static $colourToHue = [
-        'blue' => 200,
-        'darkorange' => 20,
-        'green' => 115,
-        'orange' => 45,
-        'pink' => 333,
-        'purple' => 255,
-        'red' => 0,
+        'blue' => 275,
+        'darkorange' => 275,
+        'green' => 275,
+        'orange' => 275,
+        'pink' => 275,
+        'purple' => 275,
+        'red' => 275,
     ];
 
     static $sectionMapping = [

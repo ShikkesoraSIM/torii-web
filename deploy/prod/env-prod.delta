@@ -1,0 +1,55 @@
+# Cambios en el .env para produccion, en lo que toca a dominio, TLS y entrada
+# de trafico. NO es un .env completo: son las claves a pisar sobre el actual.
+#
+# Cada linea dice el archivo/linea de osu-web que la consume, verificado en el
+# codigo del contenedor.
+
+# ---------------------------------------------------------------- urls -------
+# config/app.php:57  -> 'url' => rtrim(env('APP_URL'), '/')
+# config/filesystems.php:3 -> $appUrl = env('APP_URL'), y de ahi salen los
+#   base_url de los discos locales: /uploads/default (l.76), /uploads/avatar
+#   (l.84), /uploads/central (l.90), /uploads/replay (l.102).
+# app/Providers/AppServiceProvider.php:78 -> forceScheme('https') cuando APP_URL
+#   arranca con https.
+# resources/views/layout/metadata.blade.php:6 -> canonical, og:url y favicons.
+#
+# O sea: esta sola clave mueve links de navegacion, favicons, avatares,
+# portadas de perfil, portadas de beatmapset y el avatar por defecto. Los
+# avatares NO estan guardados como url absoluta en la base (verificado:
+# SELECT COUNT(*) FROM phpbb_users WHERE user_avatar LIKE 'http%' -> 0), los
+# arma AvatarHelper::url() en cada render. No hay que reescribir nada en mysql.
+APP_URL=https://torii-web.shikkesora.com
+
+# ---------------------------------------------------------------- proxy ------
+# config/trustedproxy.php:15 -> explode(',', env('TRUSTED_PROXIES') ?? '')
+# Vacio = Laravel ignora TODOS los X-Forwarded-*. Con la cadena
+# Caddy(443) -> nginx del host(:80) -> nginx del contenedor -> octane, sin esto
+# la app cree que habla http y ve la ip del gateway de la bridge para todos.
+# El valor tiene que ser la subred de compose, fijada en compose.prod.yml.
+TRUSTED_PROXIES=172.31.0.0/24
+
+# ---------------------------------------------------------------- cookies ----
+# config/session.php:165 -> 'secure' => env('SESSION_SECURE_COOKIE', false)
+# Por defecto false, o sea que la cookie de sesion viaja tambien por http.
+SESSION_SECURE_COOKIE=true
+
+# config/session.php:152 -> 'domain' => env('SESSION_DOMAIN', null)
+# DEJAR SIN SETEAR. null = cookie host-only para torii-web.shikkesora.com.
+# Poner ".shikkesora.com" la mandaria tambien a lazer-api, a la wiki y al
+# landing, que son servicios de terceros dentro del mismo dominio.
+# SESSION_DOMAIN=
+
+# ---------------------------------------------------------------- puerto -----
+# compose.yaml, servicio nginx: ports: "${NGINX_PORT:-8080}:80"
+# Si NGINX_PORT no esta, el default "8080:80" publica en 0.0.0.0 y ademas se
+# salta ufw (docker escribe en la cadena DOCKER de iptables), o sea que el sitio
+# quedaria servido en claro en http://159.69.124.103:8080.
+# 8090 y no 8080 porque 127.0.0.1:8080 en prod ya lo tiene osu-iceberg-wiki-1.
+NGINX_PORT=127.0.0.1:8090
+
+# ---------------------------------------------------------------- NO MIO -----
+# APP_ENV y APP_DEBUG son de la tanda de seguridad, no de esta. Se listan solo
+# porque el paso 5 del orden (abrir el 443) no se hace hasta que esten:
+#   APP_ENV=production
+#   APP_DEBUG=false
+# y hasta que TORII_SKIP_SESSION_VERIFICATION salga de compose.override.yml.

@@ -100,7 +100,7 @@ return [
             'home' => 'Home',
             'changelog-index' => 'Changelog',
             'beatmaps' => 'Beatmap Listing',
-            'download' => 'Download osu!',
+            'download' => 'Download Torii',
         ],
         'help' => [
             '_' => 'Help & Community',
@@ -188,7 +188,7 @@ return [
 
         'register' => [
             'download' => 'Download',
-            'info' => 'Download osu! to create your own account!',
+            'info' => 'Download Torii to create your own account!',
             'title' => "Don't have an account?",
         ],
     ],

@@ -10,6 +10,11 @@
 
     $opengraph['description'] ??= $pageDescription ?? null;
 @endphp
+{{-- torii: la tipografia del sitio. Zen Kaku Gothic New cubre los titulos
+     de beatmap japoneses, que son casi la mitad. --}}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300..800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" sizes="180x180" href="{{ $appUrl }}/images/favicon/apple-touch-icon.png">
 <link rel="icon" sizes="32x32" href="{{ $appUrl }}/images/favicon/favicon-32x32.png">
 <link rel="icon" sizes="16x16" href="{{ $appUrl }}/images/favicon/favicon-16x16.png">
@@ -20,15 +25,15 @@
 
 <meta charset="utf-8">
 <meta name="description" content="{{ $opengraph['description'] ?? osu_trans('layout.defaults.page_description') }}">
-<meta name="keywords" content="osu, peppy, ouendan, elite, beat, agents, ds, windows, game, taiko, tatsujin, simulator, sim, xna, ddr, beatmania, osu!, osume">
+<meta name="keywords" content="torii, shikkesora, osu, lazer, private server, rhythm game, ranked, leaderboard, taiko, mania, catch">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <meta name="turbo-cache-control" content="no-preview">
 <meta name="turbo-prefetch" content="false">
 
-<link rel="search" type="application/opensearchdescription+xml" title="osu! search" href="{{ $appUrl }}/opensearch.xml">
+<link rel="search" type="application/opensearchdescription+xml" title="Torii search" href="{{ $appUrl }}/opensearch.xml">
 
-<meta property="og:site_name" content="osu!">
+<meta property="og:site_name" content="Torii">
 <meta property="og:type" content="website">
 
 @if (isset($canonicalUrl))

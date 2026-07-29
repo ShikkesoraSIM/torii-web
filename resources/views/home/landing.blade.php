@@ -66,9 +66,8 @@
                 ></video>
             </div>
 
-            <div class="landing-hero__pippi">
-                <div class="landing-hero__pippi-logo"></div>
-            </div>
+            {{-- torii: aca iba Pippi, la mascota de osu!. El logo grande de la
+                 marca ya se dibuja mas abajo en landing-hero__logo. --}}
 
             <div class="landing-hero__info">
                 {!! osu_trans("home.landing.players", ['count' => i18n_number_format($stats->totalUsers)]) !!},
@@ -165,7 +164,7 @@
     {
       "@context": "https://schema.org",
       "@type": "VideoGame",
-      "name": "osu!",
+      "name": "Torii",
       "url": "https://osu.ppy.sh/",
       "image": "https://assets.ppy.sh/logo-with-background.png",
       "description": "rhythm is just a click away",

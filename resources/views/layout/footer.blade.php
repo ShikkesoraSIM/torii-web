@@ -12,7 +12,7 @@
             @endforeach
         </div>
     @endif
-    <div class="footer__row">ppy powered 2007-{{ date('Y') }}</div>
+    <div class="footer__row">Torii · Shikkesora {{ date('Y') }} · built on osu!web by ppy</div>
 
     <div class="js-sync-height--target" data-sync-height-id="permanent-fixed-footer"></div>
 </footer>

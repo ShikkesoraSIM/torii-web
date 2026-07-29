@@ -71,31 +71,39 @@
 // The default hue is osu! pink (333) and is injected into the body via master.blade.php as var(--base-hue) within body
 // The section-to-colour mapping is done via section_to_hue_map() in helpers.php
 body {
+  // torii: la serie b son TODOS los fondos y la d las superficies intermedias.
+  // Los originales las llevan con saturacion fija en 10 y 20 por ciento, que
+  // sobre cualquier tono da un gris carbon: se lee "oscuro", no "de noche".
+  // Subiendo la saturacion y bajando la luminosidad, el violeta se mete en las
+  // sombras en vez de quedar como un acento pegado arriba de un gris.
+  //
+  // c1, c2 y l1 a l4 son los textos claros y NO se tocan: ahi se juega el
+  // contraste, y el fondo ya bajo bastante.
   @base-colours: {
     // key: name
     // value: saturation, lightness
     p: 100%, 50%;
-    h1: 100%, 70%;
-    h2: 50%, 45%;
+    h1: 78%, 68%;
+    h2: 46%, 40%;
     c1: 40%, 100%;
     c2: 40%, 90%;
     l1: 40%, 80%;
     l2: 40%, 75%;
     l3: 40%, 70%;
     l4: 40%, 50%;
-    d1: 20%, 35%;
-    d2: 20%, 30%;
-    d3: 20%, 25%;
-    d4: 20%, 20%;
-    d5: 20%, 15%;
-    d6: 20%, 10%;
-    f1: 10%, 60%;
-    b1: 10%, 40%;
-    b2: 10%, 30%;
-    b3: 10%, 25%;
-    b4: 10%, 20%;
-    b5: 10%, 15%;
-    b6: 10%, 10%;
+    d1: 24%, 33%;
+    d2: 26%, 28%;
+    d3: 26%, 23%;
+    d4: 28%, 18%;
+    d5: 28%, 13%;
+    d6: 30%, 8%;
+    f1: 12%, 62%;
+    b1: 16%, 36%;
+    b2: 18%, 26%;
+    b3: 20%, 21%;
+    b4: 22%, 16%;
+    b5: 24%, 11%;
+    b6: 28%, 7%;
   };
 
   each(@base-colours, {
@@ -142,14 +150,20 @@ body {
     darkorange: 20;
   };
 
-  --c-saturation-1: 100%;
-  --c-saturation-2: 80%;
-  --c-saturation-3: 60%;
-  --c-saturation-4: 40%;
-  --c-lightness-1: 70%;
-  --c-lightness-2: 60%;
-  --c-lightness-3: 50%;
-  --c-lightness-4: 30%;
+  // torii: estas cuatro parejas gobiernan TODOS los colores semanticos de una
+  // (loved, ranked, los cuatro modos, los tipos de mod, los estados de mapa).
+  // No se cambia que hue significa que cosa, solo como se posan: al 100% de
+  // saturacion sobre un fondo tan oscuro los colores vibran y se pelean entre
+  // ellos. Bajando la saturacion y subiendo un punto la luminosidad quedan
+  // igual de legibles y dejan de gritar.
+  --c-saturation-1: 84%;
+  --c-saturation-2: 70%;
+  --c-saturation-3: 54%;
+  --c-saturation-4: 38%;
+  --c-lightness-1: 72%;
+  --c-lightness-2: 62%;
+  --c-lightness-3: 52%;
+  --c-lightness-4: 32%;
   each(@colours, {
     --colour-@{key}-hue: @value;
     --hsl-@{key}-1: var(~"--colour-@{key}-hue"), var(--c-saturation-1), var(--c-lightness-1);
@@ -198,10 +212,14 @@ body {
 @purple-text: @purple-darker;
 @gray-text: @gray-darker;
 
-@link-gray-light: #ccc;
-@link-gray-light-hover: #eee;
+// torii: los grises de link se tinen apenas hacia el violeta del sitio, lo
+// justo para que no se lean como gris de sistema pegado encima.
+@link-gray-light: #c6c0cf;
+@link-gray-light-hover: #ebe6f2;
 
-@group-colour-default: #0087ca;
+// El badge de grupo por defecto era un celeste generico que no pertenece a
+// ninguna paleta del sitio.
+@group-colour-default: #7b5cd6;
 
 // cross-reference: https://github.com/ppy/osu/blob/b658d9a681a04101900d5ce6c5b84d56320e08e7/osu.Game/Graphics/OsuColour.cs#L42-L73
 @colour-rank-d: #ff5a5a;

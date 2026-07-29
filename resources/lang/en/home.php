@@ -13,8 +13,8 @@ return [
         'see_more_news' => 'see more news',
 
         'slogan' => [
-            'main' => 'the bestest free-to-win rhythm game',
-            'sub' => 'rhythm is just a click away',
+            'main' => 'a private osu! server that keeps your progress',
+            'sub' => 'built by Shikkesora, running on osu!lazer',
         ],
     ],
 
@@ -148,7 +148,7 @@ return [
             'resets' => 'resets :ends',
         ],
         'buttons' => [
-            'download' => 'Download osu!',
+            'download' => 'Download Torii',
             'support' => 'Support osu!',
             'store' => 'osu!store',
         ],
