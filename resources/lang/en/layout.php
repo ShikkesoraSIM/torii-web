@@ -9,7 +9,10 @@ return [
     ],
 
     'defaults' => [
-        'page_description' => 'osu! - Rhythm is just a *click* away!  With Ouendan/EBA, Taiko and original gameplay modes, as well as a fully functional level editor.',
+        // es el <meta name="description"> de todo el sitio, o sea lo que lee un
+        // buscador y lo que muestra el preview de un link. Decia la descripcion
+        // de osu! con la lista de modos de ellos.
+        'page_description' => 'Torii - a private osu! server that keeps your progress. Relax and Autopilot are fully ranked, and unranked, loved and graveyard maps give pp too.',
     ],
 
     'header' => [
@@ -77,20 +80,16 @@ return [
         ],
         'help' => [
             '_' => 'help',
-            'getAbuse' => 'report abuse',
+            'discord' => 'ask on discord',
             'getFaq' => 'faq',
             'getRules' => 'rules',
-            'getSupport' => 'no, really, i need help!',
+            'restrictions' => 'bans & appeals',
         ],
         'home' => [
             '_' => 'home',
-            'team' => 'team',
         ],
         'rankings' => [
             '_' => 'rankings',
-        ],
-        'store' => [
-            '_' => 'store',
         ],
     ],
 
@@ -98,7 +97,6 @@ return [
         'general' => [
             '_' => 'General',
             'home' => 'Home',
-            'changelog-index' => 'Changelog',
             'beatmaps' => 'Beatmap Listing',
             'download' => 'Download Torii',
         ],
@@ -162,9 +160,11 @@ return [
         '503' => [
             'error' => 'Down for maintenance!',
             'description' => "Maintenance usually takes anywhere from 5 seconds to 10 minutes. If we're down for longer, see :link for more information.",
+            // el link era @osustatus, la cuenta de twitter de ppy. Va la misma
+            // pagina de estado que linkea el pie.
             'link' => [
-                'text' => '@osustatus',
-                'href' => 'https://twitter.com/osustatus',
+                'text' => 'the Torii status page',
+                'href' => $GLOBALS['cfg']['osu']['urls']['server_status'],
             ],
         ],
         // used by sentry if it returns an error

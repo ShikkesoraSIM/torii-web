@@ -2,130 +2,80 @@
     Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
     See the LICENCE file in the repository root for full licence text.
 --}}
-@php
-    use App\Models\Store\Product;
-    use App\Models\SupporterTag;
+{{-- torii: esta era la pagina de donaciones de osu! tal cual, con la carta
+     firmada por peppy, los perks de osu!supporter y el boton al checkout de
+     Xsolla. Se llega con el corazoncito del pie, o sea que Torii pedia plata en
+     nombre de ppy y con un carrito que aca no cobra nada.
 
-    static $getDurationText = fn (string $duration): string =>
-        SupporterTag::getDurationText($duration, null, osu_trans('common.array_and.two_words_connector'));
-@endphp
+     Lo que sigue es la version de Torii. No usa las keys de community.support ni
+     el $data del controller: esa es la copy de upstream y sus 40 traducciones
+     hablan de osu!supporter, asi que el texto vive en home.support.
+     El $supporterStatus tambien queda afuera: se calcula desde
+     osu_user_donations, que aca esta vacia porque las donaciones las lleva g0v0,
+     y a un supporter de verdad le mostraba "US$0.00 / not yet".
 
-@extends('master')
+     La tipografia es la de osu-md (la misma del wiki) porque es el unico bloque
+     de contenido del sitio que ya trae headers, listas y links armados. --}}
+{{-- el titulo de la ruta ("support the game") vive en page_title.php, que es la
+     copy de upstream; el h1 de abajo ya dice de que va. --}}
+@extends('master', ['titleOverride' => osu_trans('home.support.title')])
 
 @section('content')
     @component('layout._page_header_v4', ['params' => [
         'showTitle' => false,
         'theme' => 'supporter',
     ]])
-        @slot('contentAppend')
-            <div class="supporter-status">
-                <div class="supporter-status__pippi"></div>
-                @if (!empty($supporterStatus))
-                    <!-- supporter status  -->
-                    <div class="supporter-status__flex-container">
-                        <a class="supporter-eyecatch__link" href="{{ route('store.products.show', Product::SUPPORTER_TAG_NAME) }}" title="{{ osu_trans('community.support.convinced.support') }}">
-                            <div class="supporter-heart{{ $supporterStatus['current'] ? ' supporter-heart--active' : '' }}"></div>
-                        </a>
-                        <div class="supporter-status__flex-container-inner">
-                            <div class="supporter-status__progress-bar supporter-status__progress-bar--active">
-                                <div class="supporter-status__progress-bar-fill supporter-status__progress-bar-fill--active" style="width: {{ $supporterStatus['remainingPercent'] ?? '0' }}%;"></div>
-                            </div>
-                            @if ($supporterStatus['expiration'] !== null)
-                            <div class="supporter-status__text supporter-status__text--first">
-                                {!! osu_trans('community.support.supporter_status.'.($supporterStatus['current'] ? 'valid_until' : 'was_valid_until'), [
-                                    'date' => '<strong>'.i18n_date($supporterStatus['expiration']).'</strong>'
-                                ]) !!}
-                            </div>
-                            @else
-                            <div class="supporter-status__text">
-                                {!! osu_trans('community.support.supporter_status.not_yet') !!}
-                            </div>
-                            @endif
-                            @if ($supporterStatus['duration'] > 0)
-                            <div class="supporter-status__text">
-                                {!! osu_trans('community.support.supporter_status.contribution_with_duration', [
-                                    'dollars' => "<strong>{$supporterStatus['dollars']}</strong>",
-                                    'duration' => tag(
-                                        'strong',
-                                        content: e($getDurationText($supporterStatus['duration'])),
-                                    ),
-                                ]) !!}
-                            </div>
-                            @endif
-                            @if ($supporterStatus['giftedDuration'] > 0)
-                            <div class="supporter-status__text">
-                                {!! osu_trans('community.support.supporter_status.gifted._', [
-                                    'dollars' => "<strong>{$supporterStatus['giftedDollars']}</strong>",
-                                    'duration' => tag(
-                                        'strong',
-                                        content: e($getDurationText($supporterStatus['giftedDuration'])),
-                                    ),
-                                    'users' => tag(
-                                        'strong',
-                                        content: e(osu_trans_choice('community.support.supporter_status.gifted.users', $supporterStatus['giftedUsers'])),
-                                    ),
-                                ]) !!}
-                            </div>
-                            @endif
-                        </div>
-                    </div>
-                    <!-- end: supporter status -->
-                @endif
-            </div>
-        @endslot
     @endcomponent
 
-    <div class="osu-page osu-page--supporter">
-        <div class="supporter">
-            <div class="supporter-quote">
-                <div class="supporter-quote__body">
-                    <div class="supporter-quote__quote-mark supporter-quote__quote-mark--left"><i class="fas fa-quote-left"></i></div>
-                    <blockquote class="supporter-quote__content">
-                        I've always tried to run osu! exactly how I'd want to see it run if I were a player. While this does mean osu! will never be a super-profitable business, that was never the goal (nor will it ever be!). We intentionally avoid advertising, partnerships, etc because I feel that would detract from the core experience.
-                        <br/><br/>
-                        osu! is free-to-win – supporting osu! won’t give you any competitive advantage (but it might make you cooler amongst your friends!). I am hugely grateful, and honestly astounded, that we have come this far purely on donations, but this is where we are! Your contributions cover completely our small team's salaries, licensing efforts via the Featured Artist program, prizes and funding for official tournaments, but most importantly make sure we have quality servers and bandwidth available around the globe.
-                        <br/><br/>
-                        I would like to offer thanks and gratitude on behalf of myself and the rest of the team, to those who have supported osu!.
-                        <br/><br/>
-                        You keep osu! running.
-                    </blockquote>
-                    <div class="supporter-quote__quote-mark supporter-quote__quote-mark--right"><i class="fas fa-quote-right"></i></div>
-                </div>
-                <div class="supporter-quote__signature">— Dean "peppy" Herbert, creator of osu!</div>
-            </div>
-            <h3 class="supporter__title">
-                {{ osu_trans('community.support.why-support.title') }}
-            </h3>
-            @include('home._supporter_perk_group', ['group' => $data['support-reasons']])
-            <div class="supporter__block supporter__block--bg-0">
-                <h3 class="supporter__title">
-                    {{ osu_trans('community.support.perks.title') }}
-                </h3>
-            </div>
-            @foreach($data['perks'] as $index => $group)
-                <div class="supporter__block supporter__block--{{'bg-'.$index % 3}}">
-                    @include("home._supporter_perk_{$group['type']}", ['group' => $group])
-                </div>
-            @endforeach
-            <h3 class="supporter__title supporter__title--convinced">
-                {{ osu_trans('community.support.convinced.title') }}
-            </h3>
-            <div class="supporter-eyecatch">
-                <div class="supporter-eyecatch__box">
-                    <a class="supporter-eyecatch__link" href="{{ route('store.products.show', Product::SUPPORTER_TAG_NAME) }}">
-                        <div class="supporter-heart supporter-heart--larger supporter-heart--active"></div>
-                    </a>
-                    <div class="supporter-eyecatch__text supporter-eyecatch__text--main">
-                        {{ osu_trans('community.support.convinced.support') }}
-                    </div>
-                    <div class="supporter-eyecatch__text supporter-eyecatch__text--sub-1">
-                        {{ osu_trans('community.support.convinced.gift') }}
-                    </div>
-                    <div class="supporter-eyecatch__text supporter-eyecatch__text--sub-2">
-                        {{ osu_trans('community.support.convinced.instructions') }}
-                    </div>
-                </div>
-            </div>
+    <div class="osu-page osu-page--generic">
+        <div class="osu-md">
+            <h1 class="osu-md__header osu-md__header--1">{{ osu_trans('home.support.title') }}</h1>
+            <p class="osu-md__paragraph">{{ osu_trans('home.support.lead') }}</p>
+
+            <h2 class="osu-md__header osu-md__header--2">{{ osu_trans('home.support.costs.title') }}</h2>
+            <ul class="osu-md__list">
+                <li class="osu-md__list-item">{{ osu_trans('home.support.costs.servers') }}</li>
+                <li class="osu-md__list-item">{{ osu_trans('home.support.costs.storage') }}</li>
+                <li class="osu-md__list-item">{{ osu_trans('home.support.costs.volunteers') }}</li>
+            </ul>
+
+            <h2 class="osu-md__header osu-md__header--2">{{ osu_trans('home.support.perks.title') }}</h2>
+            <ul class="osu-md__list">
+                <li class="osu-md__list-item">{{ osu_trans('home.support.perks.title_tag') }}</li>
+                <li class="osu-md__list-item">{{ osu_trans('home.support.perks.aura') }}</li>
+                <li class="osu-md__list-item">{{ osu_trans('home.support.perks.no_advantage') }}</li>
+            </ul>
+
+            <h2 class="osu-md__header osu-md__header--2">{{ osu_trans('home.support.osu.title') }}</h2>
+            <p class="osu-md__paragraph">
+                {{-- el cliente dice lo mismo cuando le tocas el corazon: si
+                     podes bancar uno solo, banca al que hace el juego. --}}
+                {!! osu_trans('home.support.osu._', [
+                    'link' => link_to(
+                        'https://osu.ppy.sh/home/support',
+                        osu_trans('home.support.osu.link'),
+                        ['class' => 'osu-md__link', 'rel' => 'noreferrer'],
+                    ),
+                ]) !!}
+            </p>
+
+            <h2 class="osu-md__header osu-md__header--2">{{ osu_trans('home.support.convinced.title') }}</h2>
+            <p class="osu-md__paragraph">
+                {{ osu_trans('home.support.convinced.rate', ['dollars' => currency(5, 0, false)]) }}
+                {{ osu_trans('home.support.convinced.username') }}
+            </p>
+            <a class="btn-osu-big btn-osu-big--pink" href="{{ osu_url('donate') }}" rel="noreferrer">
+                <span class="btn-osu-big__content">
+                    <span class="btn-osu-big__left">
+                        <span class="btn-osu-big__text-top">
+                            {{ osu_trans('home.support.convinced.button') }}
+                        </span>
+                    </span>
+                    <span class="btn-osu-big__icon">
+                        <span class="fas fa-heart"></span>
+                    </span>
+                </span>
+            </a>
         </div>
     </div>
 @endsection

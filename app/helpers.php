@@ -948,7 +948,9 @@ function js_localtime($date)
 
 function page_description($extra)
 {
-    $parts = ['osu!', page_title()];
+    // torii: es el og:description de las paginas que lo pasan a mano, o sea lo
+    // que se ve en el preview de un link. Arrancaba con "osu!".
+    $parts = ['Torii', page_title()];
 
     if (present($extra)) {
         $parts[] = $extra;
@@ -1248,11 +1250,15 @@ function nav_links()
     $defaultMode = default_mode();
     $links = [];
 
+    // torii: de este menu salieron tres entradas.
+    // "news" y "changelog" cargan vacias: news_posts esta vacia y el changelog
+    // de Torii lo sirve g0v0 por su cuenta, las tablas osu_builds /
+    // changelog_entries que lee osu-web nunca se llenaron. Una pagina en blanco
+    // linkeada del menu principal es peor que no tenerla.
+    // "team" iba a People/osu!_team, o sea el equipo de osu! en el wiki de ellos,
+    // y aca es 404: el wiki de Torii no tiene pagina de equipo.
     $links['home'] = [
         '_' => route('home'),
-        'page_title.main.news_controller._' => route('news.index'),
-        'layout.menu.home.team' => wiki_url('People/osu!_team'),
-        'page_title.main.changelog_controller._' => route('changelog.index'),
         'page_title.main.home_controller.get_download' => route('download'),
         'page_title.main.home_controller.search' => route('search'),
     ];
@@ -1261,7 +1267,16 @@ function nav_links()
         'page_title.main.artists_controller._' => route('artists.index'),
         'page_title.main.beatmap_packs_controller._' => route('packs.index'),
     ];
+    // torii: "playlists" es el ranking de seasons y las seasons no existen en
+    // Torii: g0v0 no tiene la tabla y las de osu-web estan vacias, asi que
+    // /seasons/latest es 404 fijo. Cualquier otro tipo que se agregue a TYPES
+    // entra al menu solo.
+    $rankingTypesWithoutPage = ['playlists'];
     foreach (RankingController::TYPES as $rankingType) {
+        if (in_array($rankingType, $rankingTypesWithoutPage, true)) {
+            continue;
+        }
+
         $links['rankings']["rankings.type.{$rankingType}"] = RankingController::url(['type' => $rankingType]);
     }
     $links['community'] = [
@@ -1272,17 +1287,22 @@ function nav_links()
         'page_title.main.livestreams_controller._' => route('livestreams.index'),
         'layout.menu.community.dev' => osu_url('dev'),
     ];
-    $links['store'] = [
-        'layout.header.store.products' => route('store.products.index'),
-        'layout.header.store.cart' => route('store.cart.show'),
-        'layout.header.store.orders' => route('store.orders.index'),
-    ];
+    // torii: entre community y help iba la seccion "store", que es la tienda de
+    // osu!: merch, supporter tags y cambios de nombre cobrados por Xsolla, con
+    // /store/listing avisando que "Xsolla is an authorised global distributor of
+    // osu! products". Torii no tiene tienda y no cobra nada, y encima "products"
+    // era 404. Las rutas siguen existiendo pero ya no se linkean.
+
+    // torii: "report abuse" iba a Reporting_bad_behaviour/Abuse y "no, really, i
+    // need help!" a Help_centre, dos paginas del wiki de osu! que aca no existen.
+    // En Torii se reporta y se pide ayuda en discord, es lo que dice la propia
+    // pagina de reglas, y las apelaciones viven en el wiki de Restrictions.
     $links['help'] = [
         'page_title.main.wiki_controller._' => wiki_url('Main_page'),
         'layout.menu.help.getFaq' => wiki_url('FAQ'),
         'layout.menu.help.getRules' => wiki_url('Rules'),
-        'layout.menu.help.getAbuse' => wiki_url('Reporting_bad_behaviour/Abuse'),
-        'layout.menu.help.getSupport' => wiki_url('Help_centre'),
+        'layout.menu.help.restrictions' => wiki_url('Restrictions'),
+        'layout.menu.help.discord' => osu_url('social.discord'),
     ];
 
     return $links;
@@ -1291,9 +1311,10 @@ function nav_links()
 function footer_landing_links()
 {
     return [
+        // torii: el changelog salio de aca por lo mismo que del menu de arriba,
+        // la pagina carga vacia.
         'general' => [
             'home' => route('home'),
-            'changelog-index' => route('changelog.index'),
             'beatmaps' => action('BeatmapsetsController@index'),
             'download' => route('download'),
         ],

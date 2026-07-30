@@ -84,16 +84,15 @@ return [
     ],
 
     'download' => [
-        'action_lazer_info' => 'check this page for more information',
+        // el nombre del cliente en el boton grande. Estaba hardcodeado como
+        // "osu!" en la vista.
+        'client' => 'Torii',
         'download' => 'Download',
         'for_os' => 'for :os',
-        'macos-fallback' => 'macOS users',
-        'mirror' => 'mirror',
         'or' => 'or',
         'os_version_or_later' => ':os_version or later',
         'other_os' => 'other platforms',
         'quick_start_guide' => 'quick start guide',
-        'stable_text' => 'if you\'re looking for the older one',
         'tagline_1' => 'let\'s get you',
         'tagline_2' => 'started!',
         'video-guide' => 'video guide',
@@ -104,11 +103,6 @@ return [
             'support_button' => 'contact support',
         ],
 
-        'os' => [
-            'windows' => 'for Windows',
-            'macos' => 'for macOS',
-            'linux' => 'for Linux',
-        ],
         'steps' => [
             'register' => [
                 'title' => 'get an account',
@@ -125,6 +119,42 @@ return [
                     'browse' => 'browse',
                 ],
             ],
+        ],
+    ],
+
+    // la pagina del corazoncito del pie. Upstream trae la de osu!supporter con
+    // la carta de peppy y los precios de ellos, asi que va reescrita entera.
+    // Las keys viven aca y no en community.php porque esa es la version de
+    // upstream y la comparten las 40 traducciones.
+    'support' => [
+        'title' => 'Support Torii',
+        'lead' => 'Torii is free to play and always will be. Donations exist to cover what it costs to keep the lights on, nothing else.',
+
+        'costs' => [
+            'title' => 'Where it goes',
+            'servers' => 'Servers and bandwidth: the game server, the website, replays and beatmap downloads.',
+            'storage' => 'Domains, storage and the odd licence.',
+            'volunteers' => 'Nobody is paid. Torii is run by volunteers in their spare time.',
+        ],
+
+        'perks' => [
+            'title' => 'What you get',
+            'title_tag' => 'A Supporter title on your profile.',
+            'aura' => 'The pink hearts aura around your name, everywhere your name shows up.',
+            'no_advantage' => 'No gameplay advantage, ever. Nothing here makes you rank higher.',
+        ],
+
+        'osu' => [
+            'title' => 'Support osu! first',
+            '_' => 'Torii runs on osu!lazer, which ppy builds and gives away for free. If you can only support one, support :link.',
+            'link' => 'osu! itself',
+        ],
+
+        'convinced' => [
+            'title' => 'Still here?',
+            'button' => 'Donate on Ko-fi',
+            'rate' => 'Every :dollars is one month of Supporter, and it stacks.',
+            'username' => 'Put @yourusername in the Ko-fi message so the Supporter title lands on the right account.',
         ],
     ],
 
@@ -150,8 +180,7 @@ return [
         ],
         'buttons' => [
             'download' => 'Download Torii',
-            'support' => 'Support osu!',
-            'store' => 'osu!store',
+            'support' => 'Support Torii',
         ],
         'livestream' => [
             'title' => 'Featured Livestream',

@@ -12,8 +12,12 @@
     <div class="download-page">
         <div class="download-page__header">
             <div class="download-page__banner">
-                <video class="download-page__banner-video" src="{{ $GLOBALS['cfg']['osu']['urls']['download_video'] }}" autoplay muted loop playsinline>
-                </video>
+                {{-- torii: el video de fondo salia de assets.ppy.sh. Sin url
+                     configurada no va el tag, que si no queda una caja negra. --}}
+                @if (present($GLOBALS['cfg']['osu']['urls']['download_video']))
+                    <video class="download-page__banner-video" src="{{ $GLOBALS['cfg']['osu']['urls']['download_video'] }}" autoplay muted loop playsinline>
+                    </video>
+                @endif
                 <div class="download-page__banner-content download-page__banner-content--main">
                     <div class="download-page__tagline">
                         <span class="download-page__tagline-1">{{ osu_trans('home.download.tagline_1') }}</span>
@@ -28,7 +32,7 @@
                                 {{ osu_trans('home.download.download') }}
                                 <div>
                                     <div class="btn-osu-big__text-top btn-osu-big__text-top--download">
-                                        osu!
+                                        {{ osu_trans('home.download.client') }}
                                     </div>
                                     {{ osu_trans('home.download.for_os', ['os' => $lazerPlatformName]) }}
                                 </div>
@@ -46,52 +50,23 @@
                     </div>
                 </div>
             </div>
-            <div class="download-page__banner-tail">
-                <div class="download-page__banner-content download-page__banner-content--tail">
-                    <div class="download-page__text download-page__text--download-stable">
-                        <div>
-                            {{ osu_trans('home.download.stable_text') }}:
-                        </div>
-                        @if (($lazerInfoUrl = osu_url('lazer_info')) !== null)
-                            <a href="{{ $lazerInfoUrl }}">
-                                ({{ osu_trans('home.download.action_lazer_info') }})
-                            </a>
-                        @endif
-                    </div>
-                    <a class="btn-osu-big btn-osu-big--download btn-osu-big--download-stable" href="{{ osu_url('installer') }}">
-                        <div class="btn-osu-big__content">
-                            <div class="btn-osu-big__left">
-                                <div>
-                                    <div class="btn-osu-big__text-top btn-osu-big__text-top--download">
-                                        osu!(stable)
-                                    </div>
-                                    {{ osu_trans('home.download.os.windows') }}
-                                </div>
-                            </div>
-                            <span class="btn-osu-big__icon">
-                                <span class="svg-icon svg-icon--download"></span>
-                            </span>
-                        </div>
-                    </a>
-
-                    <div class="download-page__extra-links">
-                        <a class="download-page__extra-link" href="{{ osu_url('installer-mirror') }}">
-                            {{ osu_trans('home.download.mirror') }}
-                        </a>
-                        <span class="download-page__extra-link download-page__extra-link--separator"></span>
-                        <a class="download-page__extra-link" href="{{ osu_url('osx') }}">
-                            {{ osu_trans('home.download.macos-fallback') }}
-                        </a>
-                    </div>
-                </div>
-            </div>
+            {{-- torii: aca iba el bloque de osu!(stable): el boton a
+                 m1.ppy.sh, el espejo a m2.ppy.sh y el fallback de macOS a
+                 osx.ppy.sh. Torii no tiene cliente stable ni build de macOS
+                 legacy, y los tres servian binarios de ppy que no se conectan
+                 aca, asi que el bloque entero no va. --}}
         </div>
 
         <div class="download-page__guide">
-            <iframe
-                class="download-page__video u-embed-wide"
-                src="https://youtube.com/embed/videoseries?list={{ $GLOBALS['cfg']['osu']['urls']['youtube-tutorial-playlist'] }}"
-            ></iframe>
+            {{-- torii: el iframe de aca era una playlist de youtube de ppy
+                 enseñando a instalar osu! vanilla. Solo se dibuja si hay una
+                 playlist propia configurada. --}}
+            @if (present($playlistId = $GLOBALS['cfg']['osu']['urls']['youtube-tutorial-playlist']))
+                <iframe
+                    class="download-page__video u-embed-wide"
+                    src="https://youtube.com/embed/videoseries?list={{ $playlistId }}"
+                ></iframe>
+            @endif
             <div class="download-page__guide-content">
                 <div class="download-page__steps">
                     <div class="download-page__step">

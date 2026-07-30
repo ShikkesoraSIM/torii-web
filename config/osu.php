@@ -231,7 +231,9 @@ return [
         'max_members' => get_int(env('TEAM_MAX_MEMBERS')) ?? 40,
     ],
     'totp' => [
-        'issuer_name' => env('TOTP_ISSUER_NAME', 'osu!dev'),
+        // torii: es el nombre que le queda al codigo en la app de
+        // autenticacion del jugador. Decia osu!dev.
+        'issuer_name' => env('TOTP_ISSUER_NAME', 'Torii'),
     ],
     'twitch_client_id' => presence(env('TWITCH_CLIENT_ID')),
     'twitch_client_secret' => presence(env('TWITCH_CLIENT_SECRET')),
@@ -243,20 +245,31 @@ return [
         // torii: era el discord de osu!. Es el link "dev" del menu de
         // comunidad, o sea que mandaba a la gente de Torii al servidor de ppy.
         'dev' => presence(env('OSU_URL_DEV')) ?? 'https://discord.gg/fZXsZFT5Xv',
-        'download_video' => env('OSU_URL_DOWNLOAD_VIDEO', 'https://assets.ppy.sh/media/festive.mp4'),
-        'installer' => 'https://m1.ppy.sh/r/osu!install.exe',
-        'installer-mirror' => 'https://m2.ppy.sh/r/osu!install.exe',
-        'lazer_dl.android' => presence(env('OSU_URL_LAZER_ANDROID')) ?? 'https://github.com/ppy/osu/releases/latest/download/sh.ppy.osulazer.apk',
+        // torii: donde se donan de verdad. Es la misma pagina que usa el
+        // frontend de lazer.shikkesora.com y la que escucha el webhook de
+        // g0v0, que matchea la donacion al usuario por el @username del
+        // mensaje de ko-fi.
+        'donate' => presence(env('OSU_URL_DONATE')) ?? 'https://ko-fi.com/toriiserver',
+        // torii: el video del banner de la pagina de descarga vivia en
+        // assets.ppy.sh. Sin url la vista no dibuja el <video>.
+        'download_video' => env('OSU_URL_DOWNLOAD_VIDEO', ''),
+        // torii: estos seis apuntaban a github.com/ppy/osu, o sea que el flujo
+        // de alta que el sitio recomienda terminaba bajando un cliente que no
+        // se puede conectar aca. Los assets salen del ultimo release de
+        // torii-osu: los tags -nova van marcados como prerelease, asi que
+        // /releases/latest/ cae siempre en el stream estable.
+        'lazer_dl.android' => presence(env('OSU_URL_LAZER_ANDROID')) ?? 'https://github.com/ShikkesoraSIM/torii-osu/releases/latest/download/torii.apk',
         'lazer_dl.ios' => presence(env('OSU_URL_LAZER_IOS')) ?? '/home/testflight',
-        'lazer_dl.linux_x64' => presence(env('OSU_URL_LAZER_LINUX_X64')) ?? 'https://github.com/ppy/osu/releases/latest/download/osu.AppImage',
-        'lazer_dl.macos_as' => presence(env('OSU_URL_LAZER_MACOS_AS')) ?? 'https://github.com/ppy/osu/releases/latest/download/osu.app.Apple.Silicon.zip',
-        'lazer_dl.macos_intel' => presence(env('OSU_URL_LAZER_MACOS_INTEL')) ?? 'https://github.com/ppy/osu/releases/latest/download/osu.app.Intel.zip',
-        'lazer_dl.windows_x64' => presence(env('OSU_URL_LAZER_WINDOWS_X64')) ?? 'https://github.com/ppy/osu/releases/latest/download/install.exe',
-        'lazer_dl_other' => presence(env('OSU_URL_LAZER_OTHER')) ?? 'https://github.com/ppy/osu/#running-osu',
+        'lazer_dl.linux_x64' => presence(env('OSU_URL_LAZER_LINUX_X64')) ?? 'https://github.com/ShikkesoraSIM/torii-osu/releases/latest/download/torii-linux-x64.AppImage',
+        'lazer_dl.macos_as' => presence(env('OSU_URL_LAZER_MACOS_AS')) ?? 'https://github.com/ShikkesoraSIM/torii-osu/releases/latest/download/osu.app.Apple.Silicon.zip',
+        'lazer_dl.macos_intel' => presence(env('OSU_URL_LAZER_MACOS_INTEL')) ?? 'https://github.com/ShikkesoraSIM/torii-osu/releases/latest/download/osu.app.Intel.zip',
+        'lazer_dl.windows_x64' => presence(env('OSU_URL_LAZER_WINDOWS_X64')) ?? 'https://github.com/ShikkesoraSIM/torii-osu/releases/latest/download/install-win-x64.exe',
+        'lazer_dl_other' => presence(env('OSU_URL_LAZER_OTHER')) ?? 'https://github.com/ShikkesoraSIM/torii-osu/releases',
         'lazer_info' => presence(env('OSU_URL_LAZER_INFO')),
         'menu_content' => presence(env('OSU_URL_MENU_CONTENT_JSON')) ?? 'https://assets.ppy.sh/menu-content.json',
-        'osx' => 'https://osx.ppy.sh',
-        'server_status' => 'https://status.ppy.sh',
+        // torii: era status.ppy.sh, el estado del servidor de ellos. g0v0 sirve
+        // su propia pagina de estado en /status del host de la api.
+        'server_status' => presence(env('OSU_URL_SERVER_STATUS')) ?? 'https://lazer-api.shikkesora.com/status',
         'smilies' => '/forum/images/smilies',
         // torii: upstream apunta a /wiki/Twitter y Torii no tiene twitter; la
         // comunidad vive en discord. Es el mismo invite que usa el frontend de
@@ -268,12 +281,16 @@ return [
         // ESTA version, la modificada. Apuntar a github.com/ppy no cumple:
         // ese es el codigo de ellos, no el que corre aca.
         'source_code' => presence(env('OSU_URL_SOURCE_CODE')) ?? 'https://github.com/ShikkesoraSIM/torii-web',
-        'testflight.public' => env('TESTFLIGHT_LINK'),
-        'testflight.supporter' => env('TESTFLIGHT_LINK_SUPPORTER'),
-        'user.recover' => '/wiki/Help_centre/Account#sign-in',
-        'user.restriction' => presence(env('OSU_URL_USER_RESTRICTION')) ?? '/wiki/Help_centre/Account_restrictions',
-        'user.rules' => '/wiki/Osu!:Rules',
-        'youtube-tutorial-playlist' => 'PLmWVQsxi34bMYwAawZtzuptfMmszUa_tl',
+        // torii: los tres apuntaban a paginas del wiki de osu! que aca no
+        // existen (Help_centre/*, Osu!:Rules) y daban 404. Recuperar la cuenta
+        // cuando perdiste el mail no es self-serve: es ticket en discord, el
+        // reset con mail vive en /home/password-reset.
+        'user.recover' => presence(env('OSU_URL_USER_RECOVER')) ?? 'https://discord.gg/fZXsZFT5Xv',
+        'user.restriction' => presence(env('OSU_URL_USER_RESTRICTION')) ?? '/wiki/Restrictions',
+        'user.rules' => '/wiki/Rules',
+        // torii: la playlist de upstream son videos de ppy enseñando a instalar
+        // osu! vanilla. Sin id, la pagina de descarga no dibuja el iframe.
+        'youtube-tutorial-playlist' => presence(env('OSU_URL_YOUTUBE_TUTORIAL_PLAYLIST')),
     ],
     'user' => [
         'allow_email_login' => get_bool(env('USER_ALLOW_EMAIL_LOGIN')) ?? true,

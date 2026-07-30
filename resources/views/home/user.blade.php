@@ -48,38 +48,42 @@
                     </div>
                 @endif
 
-                <div class="user-home__news">
-                    <h2 class="user-home__left-title">{{ osu_trans('home.user.news.title') }}</h2>
+                {{-- torii: no hay noticias todavia, y el titulo solo dejaba un
+                     "News" colgado arriba de la nada en media pantalla. --}}
+                @if (count($news) > 0)
+                    <div class="user-home__news">
+                        <h2 class="user-home__left-title">{{ osu_trans('home.user.news.title') }}</h2>
 
-                    @foreach ($news as $post)
-                        @if ($loop->iteration > $newsPostLargePreviews)
-                            @break
+                        @foreach ($news as $post)
+                            @if ($loop->iteration > $newsPostLargePreviews)
+                                @break
+                            @endif
+
+                            @include('home._user_news_post_preview', ['post' => $post, 'collapsed' => false])
+                        @endforeach
+
+                        @if (count($news) > $newsPostLargePreviews)
+                            <div class="user-home__news-posts-group">
+                                @foreach ($news as $post)
+                                    @if ($loop->iteration <= $newsPostLargePreviews)
+                                        @continue
+                                    @endif
+
+                                    @include('home._user_news_post_preview', ['post' => $post, 'collapsed' => true])
+                                @endforeach
+                            </div>
                         @endif
 
-                        @include('home._user_news_post_preview', ['post' => $post, 'collapsed' => false])
-                    @endforeach
-
-                    @if (count($news) > $newsPostLargePreviews)
-                        <div class="user-home__news-posts-group">
-                            @foreach ($news as $post)
-                                @if ($loop->iteration <= $newsPostLargePreviews)
-                                    @continue
-                                @endif
-
-                                @include('home._user_news_post_preview', ['post' => $post, 'collapsed' => true])
-                            @endforeach
-                        </div>
-                    @endif
-
-                    @if (count($news) > NewsPost::DASHBOARD_LIMIT)
-                        <a
-                            href="{{ route('news.index') }}"
-                            class="user-home__news-posts-group user-home__news-posts-group--more"
-                        >
-                            {{ osu_trans('common.buttons.see_more') }}
-                        </a>
-                    @endif
-                </div>
+                        @if (count($news) > NewsPost::DASHBOARD_LIMIT)
+                            <a
+                                href="{{ route('news.index') }}"
+                                class="user-home__news-posts-group user-home__news-posts-group--more"
+                            >
+                                {{ osu_trans('common.buttons.see_more') }}
+                            </a>
+                        @endif
+                    </div>
+                @endif
             </div>
             <div class="user-home__right-sidebar">
                 <div class="user-home__status-box">
@@ -99,17 +103,17 @@
                         'colour' => 'c-pink-darker'
                     ])
 
-                    @include('home._user_giant_button', [
-                        'href' => route('store.products.index'),
-                        'label' => osu_trans('home.user.buttons.store'),
-                        'icon' => 'shopping-cart',
-                        'colour' => 'c-darkorange'
-                    ])
+                    {{-- torii: aca iba el boton al osu!store, que vende merch y
+                         supporter tags de ppy por Xsolla. No hay tienda de
+                         Torii, asi que el boton no va. --}}
                 </div>
 
                 @if ($dailyChallenge)
                     <h3 class="user-home__beatmap-list-header">
-                        <a href="{{ wiki_url("Gameplay/Daily_challenge") }}">
+                        {{-- torii: el titulo linkeaba a Gameplay/Daily_challenge
+                             del wiki de osu!, que aca es 404. Si hay daily
+                             challenge, la pagina de su leaderboard existe. --}}
+                        <a href="{{ route('daily-challenge.index') }}">
                             {{ osu_trans('home.user.beatmaps.daily_challenge') }}
                         </a>
                     </h3>
