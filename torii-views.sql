@@ -5,12 +5,12 @@
 
 -- ---------------------------------------------------------------------------
 -- phpbb_users
--- sin dato en Torii, va el default de la columna: user_perm_from, user_ip, user_passchg, user_birthday, user_lastmark, user_lastpost_time, user_lastpage, user_last_confirm_key, user_last_search, user_last_warning, user_login_attempts, user_inactive_reason, user_inactive_time, user_timezone, user_dst, user_dateformat, user_style, user_rank, user_new_privmsg, user_unread_privmsg, user_last_privmsg, user_message_rules, user_full_folder, user_emailtime, user_topic_show_days, user_topic_sortby_type, user_topic_sortby_dir, user_post_show_days, user_post_sortby_type, user_post_sortby_dir, user_notify, user_notify_pm, user_notify_type, user_allow_pm, user_allow_viewonline, user_allow_viewemail, user_allow_massemail, user_options, user_avatar_width, user_avatar_height, user_sig_bbcode_uid, user_sig_bbcode_bitfield, user_msnm, user_jabber, user_actkey, user_newpasswd, osu_mapperrank, osu_testversion, osu_kudosavailable, osu_kudosdenied, osu_kudostotal, username_previous, osu_featurevotes, remember_token, lock_email_changes
+-- sin dato en Torii, va el default de la columna: user_perm_from, user_ip, user_passchg, user_birthday, user_lastmark, user_lastpost_time, user_lastpage, user_last_confirm_key, user_last_search, user_last_warning, user_login_attempts, user_inactive_reason, user_inactive_time, user_timezone, user_dst, user_dateformat, user_rank, user_new_privmsg, user_unread_privmsg, user_last_privmsg, user_message_rules, user_full_folder, user_emailtime, user_topic_show_days, user_topic_sortby_type, user_topic_sortby_dir, user_post_show_days, user_post_sortby_type, user_post_sortby_dir, user_notify, user_notify_pm, user_notify_type, user_allow_viewonline, user_allow_viewemail, user_allow_massemail, user_options, user_avatar_width, user_avatar_height, user_sig_bbcode_uid, user_sig_bbcode_bitfield, user_msnm, user_actkey, user_newpasswd, osu_mapperrank, osu_testversion, osu_kudosavailable, osu_kudosdenied, osu_kudostotal, username_previous, osu_featurevotes, remember_token, lock_email_changes
 DROP VIEW IF EXISTS `osu`.`phpbb_users`;
 CREATE VIEW `osu`.`phpbb_users` AS
 SELECT
     u.id AS `user_id`,
-    0 AS `user_type`,
+    CASE WHEN u.is_active = 0 THEN 1 ELSE 0 END AS `user_type`,
     CASE WHEN u.is_bot = 1 THEN 6 ELSE 7 END AS `group_id`,
     '' AS `user_permissions`,
     0 AS `user_perm_from`,
@@ -38,7 +38,7 @@ SELECT
     0.00 AS `user_timezone`,
     0 AS `user_dst`,
     'd M Y H:i' AS `user_dateformat`,
-    0 AS `user_style`,
+    COALESCE(u.profile_hue, 0) AS `user_style`,
     0 AS `user_rank`,
     LEFT(COALESCE(u.profile_colour, ''), 6) AS `user_colour`,
     0 AS `user_new_privmsg`,
@@ -56,7 +56,7 @@ SELECT
     0 AS `user_notify`,
     1 AS `user_notify_pm`,
     0 AS `user_notify_type`,
-    1 AS `user_allow_pm`,
+    IF(COALESCE(u.pm_friends_only, 0) = 1, 0, 1) AS `user_allow_pm`,
     1 AS `user_allow_viewonline`,
     1 AS `user_allow_viewemail`,
     1 AS `user_allow_massemail`,
@@ -71,7 +71,7 @@ SELECT
     LEFT(COALESCE(u.location,''), 100) AS `user_from`,
     LEFT(COALESCE(u.twitter,''), 255) AS `user_twitter`,
     '' AS `user_msnm`,
-    '' AS `user_jabber`,
+    LEFT(COALESCE(u.discord,''), 255) AS `user_jabber`,
     LEFT(COALESCE(u.website,''), 200) AS `user_website`,
     LEFT(COALESCE(u.occupation,''), 255) AS `user_occ`,
     LEFT(COALESCE(u.interests,''), 255) AS `user_interests`,
@@ -379,13 +379,13 @@ WHERE s.mode = 'MANIA'
 
 -- ---------------------------------------------------------------------------
 -- osu_beatmapsets
--- sin dato en Torii, va el default de la columna: thread_id, epilepsy, approvedby_id, filename, rating, offset, star_priority, filesize, filesize_novideo, body_hash, header_hash, osz2_hash, download_disabled_url, thread_icon_date, discussion_enabled, deleted_at, previous_queue_duration, queued_at, storyboard_hash, anime_cover, comment_locked, eligible_main_rulesets
+-- sin dato en Torii, va el default de la columna: epilepsy, approvedby_id, filename, rating, offset, star_priority, filesize, filesize_novideo, body_hash, header_hash, osz2_hash, download_disabled_url, thread_icon_date, discussion_enabled, deleted_at, previous_queue_duration, storyboard_hash, anime_cover, comment_locked, eligible_main_rulesets
 DROP VIEW IF EXISTS `osu`.`osu_beatmapsets`;
 CREATE VIEW `osu`.`osu_beatmapsets` AS
 SELECT
     b.id AS `beatmapset_id`,
     CASE WHEN b.is_local = 1 THEN b.user_id ELSE 0 END AS `user_id`,
-    0 AS `thread_id`,
+    d.thread_id AS `thread_id`,
     LEFT(COALESCE(b.artist,''), 80) AS `artist`,
     LEFT(COALESCE(NULLIF(b.artist_unicode,''), b.artist, ''), 80) AS `artist_unicode`,
     LEFT(COALESCE(b.title,''), 80) AS `title`,
@@ -429,15 +429,15 @@ SELECT
     COALESCE(b.hype_current, 0) AS `hype`,
     COALESCE(b.nominations_current, 0) AS `nominations`,
     0 AS `previous_queue_duration`,
-    NULL AS `queued_at`,
+    CASE WHEN b.beatmap_status = 'QUALIFIED' THEN COALESCE(b.ranked_date, b.last_updated, b.submitted_date) ELSE NULL END AS `queued_at`,
     NULL AS `storyboard_hash`,
     COALESCE(b.nsfw, 0) AS `nsfw`,
     0 AS `anime_cover`,
-    b.track_id AS `track_id`,
-    COALESCE(b.spotlight, 0) AS `spotlight`,
+    NULL AS `track_id`,
+    0 AS `spotlight`,
     0 AS `comment_locked`,
     NULL AS `eligible_main_rulesets`
-FROM torii.beatmapsets b LEFT JOIN osu.torii_cache_beatmapset c ON c.beatmapset_id = b.id
+FROM torii.beatmapsets b LEFT JOIN osu.torii_cache_beatmapset c ON c.beatmapset_id = b.id LEFT JOIN osu.torii_cache_beatmapset_description d ON d.beatmapset_id = b.id
 WHERE EXISTS (SELECT 1 FROM torii.beatmaps m2 WHERE m2.beatmapset_id = b.id)
 ;
 
@@ -464,7 +464,7 @@ SELECT
     GREATEST(COALESCE(m.accuracy,0), 0) AS `diff_overall`,
     GREATEST(COALESCE(m.ar,0), 0) AS `diff_approach`,
     CASE m.mode WHEN 'TAIKO' THEN 1 WHEN 'TAIKORX' THEN 1 WHEN 'FRUITS' THEN 2 WHEN 'FRUITSRX' THEN 2 WHEN 'MANIA' THEN 3 ELSE 0 END AS `playmode`,
-    CASE m.beatmap_status WHEN 'GRAVEYARD' THEN -2 WHEN 'WIP' THEN -1 WHEN 'PENDING' THEN 0 WHEN 'RANKED' THEN 1 WHEN 'APPROVED' THEN 2 WHEN 'QUALIFIED' THEN 3 WHEN 'LOVED' THEN 4 ELSE 0 END AS `approved`,
+    CASE WHEN m.beatmap_status = 'QUALIFIED' AND bs.beatmap_status <> 'QUALIFIED' THEN CASE bs.beatmap_status WHEN 'GRAVEYARD' THEN -2 WHEN 'WIP' THEN -1 WHEN 'PENDING' THEN 0 WHEN 'RANKED' THEN 1 WHEN 'APPROVED' THEN 2 WHEN 'QUALIFIED' THEN 3 WHEN 'LOVED' THEN 4 ELSE 0 END ELSE CASE m.beatmap_status WHEN 'GRAVEYARD' THEN -2 WHEN 'WIP' THEN -1 WHEN 'PENDING' THEN 0 WHEN 'RANKED' THEN 1 WHEN 'APPROVED' THEN 2 WHEN 'QUALIFIED' THEN 3 WHEN 'LOVED' THEN 4 ELSE 0 END END AS `approved`,
     COALESCE(m.last_updated, NOW()) AS `last_update`,
     COALESCE(m.difficulty_rating, 0) AS `difficultyrating`,
     LEAST(COALESCE(m.max_combo, 0), 16777215) AS `max_combo`,
@@ -602,7 +602,6 @@ FROM torii.replays_watched_counts r
 
 -- ---------------------------------------------------------------------------
 -- teams
--- sin dato en Torii, va el default de la columna: is_open
 DROP VIEW IF EXISTS `osu`.`teams`;
 CREATE VIEW `osu`.`teams` AS
 SELECT
@@ -646,11 +645,11 @@ SELECT
             '<img src=''/images/', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.scorerank')),
             '_small.png''/> <b><a href=''/users/', e.user_id, '''>', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.user.username')),
             '</a></b> achieved rank #', JSON_EXTRACT(e.event_payload, '$.rank'),
-            ' on <a href=''/b/', SUBSTRING_INDEX(JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.beatmap.url')), '/', -1), '''>', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.beatmap.title')), '</a> (', CASE JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode')) WHEN 'osu!relax' THEN 'osu!' WHEN 'osu!autopilot' THEN 'osu!' WHEN 'catch relax' THEN 'osu!catch' WHEN 'taiko relax' THEN 'osu!taiko' ELSE JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode')) END, ')')
+            ' on <a href=''/b/', SUBSTRING_INDEX(JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.beatmap.url')), '/', -1), '''>', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.beatmap.title')), '</a> (', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode')), ')')
         WHEN 'RANK_LOST' THEN CONCAT(
             '<b><a href=''/users/', e.user_id, '''>', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.user.username')),
             '</a></b> has lost first place on <a href=''/b/', SUBSTRING_INDEX(JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.beatmap.url')), '/', -1), '''>', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.beatmap.title')),
-            '</a> (', CASE JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode')) WHEN 'osu!relax' THEN 'osu!' WHEN 'osu!autopilot' THEN 'osu!' WHEN 'catch relax' THEN 'osu!catch' WHEN 'taiko relax' THEN 'osu!taiko' ELSE JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode')) END, ')')
+            '</a> (', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode')), ')')
         WHEN 'ACHIEVEMENT' THEN CONCAT(
             '<b><a href=''/users/', e.user_id, '''>', JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.user.username')),
             '</a></b> unlocked the "<b>',
@@ -669,7 +668,7 @@ SELECT
     0 AS `private`,
     NULL AS `legacy_score_event`
 FROM torii.user_events e
-WHERE e.type IN ('RANK','RANK_LOST','ACHIEVEMENT','USERNAME_CHANGE') AND CASE e.type   WHEN 'ACHIEVEMENT' THEN JSON_EXTRACT(e.event_payload, '$.achievement.name') IS NOT NULL   WHEN 'USERNAME_CHANGE' THEN JSON_EXTRACT(e.event_payload, '$.user.previous_username') IS NOT NULL   ELSE JSON_EXTRACT(e.event_payload, '$.beatmap.url') IS NOT NULL END
+WHERE e.type IN ('RANK','RANK_LOST','ACHIEVEMENT','USERNAME_CHANGE') AND CASE e.type   WHEN 'ACHIEVEMENT' THEN JSON_EXTRACT(e.event_payload, '$.achievement.name') IS NOT NULL   WHEN 'USERNAME_CHANGE' THEN JSON_EXTRACT(e.event_payload, '$.user.previous_username') IS NOT NULL   ELSE JSON_EXTRACT(e.event_payload, '$.beatmap.url') IS NOT NULL     AND JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode')) IN ('osu!', 'osu!taiko', 'osu!catch', 'osu!mania') END
 ;
 
 -- ---------------------------------------------------------------------------
@@ -701,7 +700,7 @@ SELECT
     'admin' AS `type`,
     COALESCE(u.join_date, NOW()) AS `timestamp`,
     LEFT(jt.uname, 30) AS `username_last`
-FROM torii.lazer_users u JOIN JSON_TABLE(u.previous_usernames, '$[*]' COLUMNS (uname VARCHAR(30) PATH '$', pos FOR ORDINALITY)) jt
+FROM torii.lazer_users u JOIN JSON_TABLE(u.previous_usernames, '$[*]' COLUMNS (uname VARCHAR(30) CHARACTER SET utf8mb4 PATH '$', pos FOR ORDINALITY)) jt
 WHERE JSON_LENGTH(u.previous_usernames) > 0 AND jt.uname COLLATE utf8mb4_general_ci <> u.username
 ;
 
@@ -714,95 +713,95 @@ SELECT
     h.user_id AS `user_id`,
     CASE h.mode WHEN 'TAIKO' THEN 1 WHEN 'TAIKORX' THEN 1 WHEN 'FRUITS' THEN 2 WHEN 'FRUITSRX' THEN 2 WHEN 'MANIA' THEN 3 ELSE 0 END AS `mode`,
     0 AS `r0`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 88 THEN h.`rank` END), 0) AS `r1`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 87 THEN h.`rank` END), 0) AS `r2`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 86 THEN h.`rank` END), 0) AS `r3`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 85 THEN h.`rank` END), 0) AS `r4`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 84 THEN h.`rank` END), 0) AS `r5`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 83 THEN h.`rank` END), 0) AS `r6`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 82 THEN h.`rank` END), 0) AS `r7`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 81 THEN h.`rank` END), 0) AS `r8`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 80 THEN h.`rank` END), 0) AS `r9`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 79 THEN h.`rank` END), 0) AS `r10`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 78 THEN h.`rank` END), 0) AS `r11`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 77 THEN h.`rank` END), 0) AS `r12`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 76 THEN h.`rank` END), 0) AS `r13`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 75 THEN h.`rank` END), 0) AS `r14`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 74 THEN h.`rank` END), 0) AS `r15`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 73 THEN h.`rank` END), 0) AS `r16`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 72 THEN h.`rank` END), 0) AS `r17`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 71 THEN h.`rank` END), 0) AS `r18`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 70 THEN h.`rank` END), 0) AS `r19`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 69 THEN h.`rank` END), 0) AS `r20`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 68 THEN h.`rank` END), 0) AS `r21`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 67 THEN h.`rank` END), 0) AS `r22`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 66 THEN h.`rank` END), 0) AS `r23`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 65 THEN h.`rank` END), 0) AS `r24`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 64 THEN h.`rank` END), 0) AS `r25`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 63 THEN h.`rank` END), 0) AS `r26`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 62 THEN h.`rank` END), 0) AS `r27`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 61 THEN h.`rank` END), 0) AS `r28`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 60 THEN h.`rank` END), 0) AS `r29`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 59 THEN h.`rank` END), 0) AS `r30`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 58 THEN h.`rank` END), 0) AS `r31`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 57 THEN h.`rank` END), 0) AS `r32`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 56 THEN h.`rank` END), 0) AS `r33`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 55 THEN h.`rank` END), 0) AS `r34`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 54 THEN h.`rank` END), 0) AS `r35`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 53 THEN h.`rank` END), 0) AS `r36`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 52 THEN h.`rank` END), 0) AS `r37`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 51 THEN h.`rank` END), 0) AS `r38`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 50 THEN h.`rank` END), 0) AS `r39`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 49 THEN h.`rank` END), 0) AS `r40`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 48 THEN h.`rank` END), 0) AS `r41`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 47 THEN h.`rank` END), 0) AS `r42`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 46 THEN h.`rank` END), 0) AS `r43`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 45 THEN h.`rank` END), 0) AS `r44`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 44 THEN h.`rank` END), 0) AS `r45`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 43 THEN h.`rank` END), 0) AS `r46`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 42 THEN h.`rank` END), 0) AS `r47`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 41 THEN h.`rank` END), 0) AS `r48`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 40 THEN h.`rank` END), 0) AS `r49`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 39 THEN h.`rank` END), 0) AS `r50`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 38 THEN h.`rank` END), 0) AS `r51`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 37 THEN h.`rank` END), 0) AS `r52`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 36 THEN h.`rank` END), 0) AS `r53`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 35 THEN h.`rank` END), 0) AS `r54`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 34 THEN h.`rank` END), 0) AS `r55`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 33 THEN h.`rank` END), 0) AS `r56`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 32 THEN h.`rank` END), 0) AS `r57`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 31 THEN h.`rank` END), 0) AS `r58`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 30 THEN h.`rank` END), 0) AS `r59`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 29 THEN h.`rank` END), 0) AS `r60`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 28 THEN h.`rank` END), 0) AS `r61`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 27 THEN h.`rank` END), 0) AS `r62`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 26 THEN h.`rank` END), 0) AS `r63`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 25 THEN h.`rank` END), 0) AS `r64`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 24 THEN h.`rank` END), 0) AS `r65`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 23 THEN h.`rank` END), 0) AS `r66`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 22 THEN h.`rank` END), 0) AS `r67`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 21 THEN h.`rank` END), 0) AS `r68`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 20 THEN h.`rank` END), 0) AS `r69`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 19 THEN h.`rank` END), 0) AS `r70`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 18 THEN h.`rank` END), 0) AS `r71`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 17 THEN h.`rank` END), 0) AS `r72`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 16 THEN h.`rank` END), 0) AS `r73`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 15 THEN h.`rank` END), 0) AS `r74`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 14 THEN h.`rank` END), 0) AS `r75`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 13 THEN h.`rank` END), 0) AS `r76`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 12 THEN h.`rank` END), 0) AS `r77`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 11 THEN h.`rank` END), 0) AS `r78`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 10 THEN h.`rank` END), 0) AS `r79`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 9 THEN h.`rank` END), 0) AS `r80`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 8 THEN h.`rank` END), 0) AS `r81`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 7 THEN h.`rank` END), 0) AS `r82`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 6 THEN h.`rank` END), 0) AS `r83`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 5 THEN h.`rank` END), 0) AS `r84`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 4 THEN h.`rank` END), 0) AS `r85`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 3 THEN h.`rank` END), 0) AS `r86`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 2 THEN h.`rank` END), 0) AS `r87`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 1 THEN h.`rank` END), 0) AS `r88`,
-    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = 0 THEN h.`rank` END), 0) AS `r89`
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 88 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r1`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 87 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r2`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 86 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r3`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 85 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r4`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 84 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r5`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 83 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r6`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 82 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r7`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 81 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r8`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 80 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r9`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 79 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r10`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 78 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r11`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 77 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r12`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 76 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r13`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 75 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r14`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 74 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r15`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 73 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r16`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 72 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r17`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 71 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r18`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 70 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r19`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 69 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r20`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 68 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r21`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 67 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r22`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 66 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r23`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 65 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r24`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 64 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r25`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 63 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r26`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 62 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r27`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 61 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r28`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 60 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r29`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 59 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r30`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 58 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r31`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 57 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r32`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 56 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r33`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 55 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r34`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 54 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r35`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 53 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r36`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 52 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r37`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 51 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r38`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 50 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r39`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 49 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r40`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 48 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r41`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 47 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r42`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 46 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r43`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 45 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r44`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 44 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r45`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 43 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r46`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 42 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r47`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 41 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r48`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 40 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r49`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 39 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r50`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 38 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r51`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 37 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r52`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 36 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r53`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 35 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r54`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 34 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r55`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 33 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r56`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 32 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r57`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 31 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r58`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 30 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r59`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 29 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r60`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 28 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r61`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 27 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r62`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 26 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r63`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 25 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r64`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 24 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r65`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 23 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r66`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 22 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r67`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 21 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r68`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 20 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r69`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 19 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r70`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 18 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r71`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 17 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r72`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 16 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r73`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 15 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r74`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 14 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r75`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 13 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r76`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 12 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r77`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 11 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r78`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 10 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r79`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 9 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r80`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 8 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r81`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 7 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r82`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 6 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r83`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 5 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r84`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 4 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r85`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 3 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r86`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 2 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r87`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 1 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r88`,
+    COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= 0 THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0) AS `r89`
 FROM torii.rank_history h
 WHERE h.mode IN ('OSU','TAIKO','FRUITS','MANIA')
 GROUP BY h.user_id, CASE h.mode WHEN 'TAIKO' THEN 1 WHEN 'TAIKORX' THEN 1 WHEN 'FRUITS' THEN 2 WHEN 'FRUITSRX' THEN 2 WHEN 'MANIA' THEN 3 ELSE 0 END
@@ -878,6 +877,78 @@ SELECT
     h.created_at AS `created_at`,
     h.updated_at AS `updated_at`
 FROM torii.matchmaking_user_elo_history h
+;
+
+-- ---------------------------------------------------------------------------
+-- multiplayer_rooms
+-- sin dato en Torii, va el default de la columna: deleted_at, pinned, description, tournament_mode, max_participants
+DROP VIEW IF EXISTS `osu`.`multiplayer_rooms`;
+CREATE VIEW `osu`.`multiplayer_rooms` AS
+SELECT
+    r.id AS `id`,
+    COALESCE(r.host_id, 0) AS `user_id`,
+    LEFT(r.name, 100) AS `name`,
+    r.channel_id AS `channel_id`,
+    COALESCE(r.starts_at, NOW()) AS `starts_at`,
+    r.ends_at AS `ends_at`,
+    CASE WHEN r.max_attempts IS NULL THEN NULL ELSE LEAST(r.max_attempts, 255) END AS `max_attempts`,
+    COALESCE(r.participant_count, 0) AS `participant_count`,
+    r.password AS `password`,
+    LOWER(r.type) AS `type`,
+    LOWER(r.queue_mode) AS `queue_mode`,
+    COALESCE(r.auto_start_duration, 0) AS `auto_start_duration`,
+    COALESCE(r.auto_skip, 0) AS `auto_skip`,
+    COALESCE(r.starts_at, NOW()) AS `created_at`,
+    COALESCE(r.ends_at, r.starts_at, NOW()) AS `updated_at`,
+    NULL AS `deleted_at`,
+    LOWER(r.category) AS `category`,
+    LOWER(r.status) AS `status`,
+    0 AS `pinned`,
+    NULL AS `description`,
+    0 AS `tournament_mode`,
+    NULL AS `max_participants`
+FROM torii.rooms r
+;
+
+-- ---------------------------------------------------------------------------
+-- multiplayer_playlist_items
+DROP VIEW IF EXISTS `osu`.`multiplayer_playlist_items`;
+CREATE VIEW `osu`.`multiplayer_playlist_items` AS
+SELECT
+    p.db_id AS `id`,
+    p.room_id AS `room_id`,
+    COALESCE(p.owner_id, 0) AS `owner_id`,
+    p.beatmap_id AS `beatmap_id`,
+    p.ruleset_id AS `ruleset_id`,
+    COALESCE(p.playlist_order, 0) AS `playlist_order`,
+    COALESCE(p.allowed_mods, JSON_ARRAY()) AS `allowed_mods`,
+    COALESCE(p.required_mods, JSON_ARRAY()) AS `required_mods`,
+    COALESCE(p.freestyle, 0) AS `freestyle`,
+    NULL AS `max_attempts`,
+    COALESCE(p.created_at, NOW()) AS `created_at`,
+    COALESCE(p.updated_at, p.created_at, NOW()) AS `updated_at`,
+    COALESCE(p.expired, 0) AS `expired`,
+    p.played_at AS `played_at`
+FROM torii.room_playlists p
+;
+
+-- ---------------------------------------------------------------------------
+-- multiplayer_scores_high
+DROP VIEW IF EXISTS `osu`.`multiplayer_scores_high`;
+CREATE VIEW `osu`.`multiplayer_scores_high` AS
+SELECT
+    b.score_id AS `id`,
+    b.score_id AS `score_id`,
+    b.user_id AS `user_id`,
+    p.db_id AS `playlist_item_id`,
+    COALESCE(b.total_score, 0) AS `total_score`,
+    COALESCE(s.accuracy, 0) AS `accuracy`,
+    s.pp AS `pp`,
+    COALESCE(b.attempts, 0) AS `attempts`,
+    COALESCE(s.ended_at, NOW()) AS `created_at`,
+    COALESCE(s.ended_at, NOW()) AS `updated_at`
+FROM torii.playlist_best_scores b JOIN torii.room_playlists p ON p.room_id = b.room_id AND p.id = b.playlist_id JOIN torii.scores s ON s.id = b.score_id
+WHERE b.user_id IS NOT NULL AND s.gamemode IN ('OSU','TAIKO','FRUITS','MANIA')
 ;
 
 -- ---------------------------------------------------------------------------

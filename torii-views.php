@@ -74,14 +74,21 @@ function status_int(string $c): string
 // Va todo en un solo SELECT con un CASE por tipo y no cuatro selects unidos,
 // porque una vista con UNION la materializa MySQL entera antes de filtrar y el
 // perfil pide los eventos de UN usuario.
+
+// Los cuatro modos que Event::stringMode() sabe leer. Cualquier otro (los de
+// Torii: osu!relax, osu!autopilot, catch relax, taiko relax) hace que el parser
+// devuelva parse_error y la actividad muestre una fila rota, asi que esos
+// eventos se filtran en el WHERE de la vista y no llegan nunca.
+const EVENT_MODES = "('osu!', 'osu!taiko', 'osu!catch', 'osu!mania')";
+
+function event_mode(): string
+{
+    return "JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode'))";
+}
+
 function event_text(): string
 {
-    // Torii tiene modos que el parser de osu-web no conoce y si el texto entre
-    // parentesis no es uno de los cuatro suyos descarta el evento entero.
-    $mode = "CASE JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode'))"
-          . " WHEN 'osu!relax' THEN 'osu!' WHEN 'osu!autopilot' THEN 'osu!'"
-          . " WHEN 'catch relax' THEN 'osu!catch' WHEN 'taiko relax' THEN 'osu!taiko'"
-          . " ELSE JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.mode')) END";
+    $mode = event_mode();
 
     $bid = "SUBSTRING_INDEX(JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.beatmap.url')), '/', -1)";
     $uname = "JSON_UNQUOTE(JSON_EXTRACT(e.event_payload, '$.user.username'))";
@@ -112,12 +119,29 @@ function event_text(): string
 // de una fila por dia y las lee como buffer circular; sin el contador de
 // osu_counts arranca en r1, lee hasta r89 y le pega la posicion actual al
 // final. Asi que r89 es hoy y r1 son 88 dias atras.
+//
+// El buffer de osu-web asume una snapshot POR DIA. torii.rank_history no es
+// diaria: de los 89 dias hay una veintena con diez o veinte filas en vez de las
+// trescientas y pico, o sea que ese dia la tarea no corrio. Buscando el dia
+// exacto esos huecos salian en cero, y cero en este buffer significa "no hay
+// dato": la flechita de subio/bajo compara r89 con r60 y justo r60 (29 dias
+// atras) tenia 3 filas de 442, asi que el ranking entero decia "pendiente".
+//
+// Asi que cada columna arrastra la ultima snapshot que exista en ese dia o
+// antes, que es lo que un grafico de posicion tiene que hacer igual: un dia sin
+// medir no es un dia en el que te fuiste al fondo de la tabla.
+//
+// El truco del MAX: no se puede pedir "el rank de la fecha maxima" en un solo
+// agregado, asi que se empaquetan los dos en un entero (la fecha manda en los
+// digitos altos, el rank vive en los nueve de abajo) y despues se recupera el
+// rank con el modulo. h.date + 0 da la fecha como aaaammdd.
 function rank_history_cols(): array
 {
     $cols = [];
     for ($i = 1; $i <= 89; $i++) {
         $ago = 89 - $i;
-        $cols["r$i"] = "COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) = $ago THEN h.`rank` END), 0)";
+        $cols["r$i"] = "COALESCE(MAX(CASE WHEN DATEDIFF(CURDATE(), h.date) >= $ago"
+            . " THEN (h.date + 0) * 1000000000 + h.`rank` END) % 1000000000, 0)";
     }
 
     return $cols;
@@ -146,7 +170,15 @@ $V['phpbb_users'] = [
     'where' => "u.username IS NOT NULL AND u.username <> ''",
     'cols' => [
         'user_id' => 'u.id',
-        'user_type' => '0',
+        // Torii apaga is_active en los dos casos que a osu-web le importan:
+        // cuenta baneada y cuenta borrada (las borradas quedan como deleted-N).
+        // osu-web lee user_type = 1 como baneado, y con eso las saca de la
+        // busqueda, del perfil publico y de scopeDefault de una sola vez.
+        //
+        // El otro candidato era priv, que es lo que mira g0v0 ("restricted =
+        // priv != 1"), pero no sirve aca: hay una cuenta con priv = 3 y la
+        // cuenta activa, asi que esa regla la escondería sin motivo.
+        'user_type' => 'CASE WHEN u.is_active = 0 THEN 1 ELSE 0 END',
         // El grupo por defecto de este esquema es el 7; el 2 es alumni. Los
         // bots miran group_id directo y no la tabla de pertenencia.
         'group_id' => 'CASE WHEN u.is_bot = 1 THEN 6 ELSE 7 END',
@@ -167,6 +199,20 @@ $V['phpbb_users'] = [
         'user_from' => "LEFT(COALESCE(u.location,''), 100)",
         'user_website' => "LEFT(COALESCE(u.website,''), 200)",
         'user_twitter' => "LEFT(COALESCE(u.twitter,''), 255)",
+        // Tres columnas que osu-web reusa para cosas que Torii guarda con otro
+        // nombre. Iban por filler() con el default de la columna, o sea que se
+        // veian siempre vacias aunque el jugador las tuviera cargadas, y el
+        // toggle de mensajes ademas quedaba pegado en "solo amigos" apagado.
+        //
+        //   - user_jabber: el campo del formulario se llama user_discord pero
+        //     el setter de osu-web escribe user_jabber.
+        //   - user_style: osu-web lo reuso para el tono del perfil. Su 0
+        //     significa "sin tono" y Torii lo guarda como NULL.
+        //   - user_allow_pm: es la MISMA opcion al reves. osu-web guarda
+        //     "acepta mensajes de cualquiera", Torii "solo de amigos".
+        'user_jabber' => "LEFT(COALESCE(u.discord,''), 255)",
+        'user_style' => 'COALESCE(u.profile_hue, 0)',
+        'user_allow_pm' => 'IF(COALESCE(u.pm_friends_only, 0) = 1, 0, 1)',
         'user_lang' => "'en'",
         'osu_subscriber' => '(u.is_supporter = 1)',
         'osu_subscriptionexpiry' => 'u.donor_end_at',
@@ -391,7 +437,8 @@ $V['osu_user_stats_mania'] = user_stats($src, 'MANIA');
 
 $V['osu_beatmapsets'] = [
     'from' => "$src.beatmapsets b"
-        . " LEFT JOIN $dst.torii_cache_beatmapset c ON c.beatmapset_id = b.id",
+        . " LEFT JOIN $dst.torii_cache_beatmapset c ON c.beatmapset_id = b.id"
+        . " LEFT JOIN $dst.torii_cache_beatmapset_description d ON d.beatmapset_id = b.id",
     // Hay sets que no tienen ni una difficulty porque el mirror no las trajo.
     // osu-web resuelve la ficha con whereHas('beatmaps'), asi que esas paginas
     // dan 404 pero igual aparecen en la busqueda y en los listados. No
@@ -420,6 +467,21 @@ $V['osu_beatmapsets'] = [
             . " THEN COALESCE(b.ranked_date, b.last_updated, b.submitted_date) ELSE b.ranked_date END",
         'submit_date' => 'COALESCE(b.submitted_date, b.last_updated, NOW())',
         'last_update' => 'COALESCE(b.last_updated, NOW())',
+        // Sin esto la pestaña de modding de los 36 sets qualified tiraba 500.
+        // rankingQueueStatus() calcula la posicion en la cola de ranking con
+        // where('queued_at', '<', $this->queued_at) y en nulo eso es un
+        // "Illegal operator and value combination" de Laravel, o sea una
+        // excepcion, no un cero. Torii no guarda cuando entro a la cola, pero
+        // para un set qualified ranked_date ES el momento en que lo nominaron,
+        // que es lo mismo que queued_at significa. Fuera de qualified va nulo,
+        // igual que upstream.
+        'queued_at' => "CASE WHEN b.beatmap_status = 'QUALIFIED'"
+            . ' THEN COALESCE(b.ranked_date, b.last_updated, b.submitted_date) ELSE NULL END',
+        // La descripcion del set no vive en la fila: osu-web la guarda como el
+        // primer post del hilo del foro, partido por una linea de guiones (ver
+        // Libraries\Beatmapset\Description). torii-cache.sql arma esos posts a
+        // partir de torii.beatmapsets.description y deja aca el id del hilo.
+        'thread_id' => 'd.thread_id',
         'genre_id' => "CASE b.beatmap_genre WHEN 'VIDEO_GAME' THEN 2 WHEN 'ANIME' THEN 3"
             . " WHEN 'ROCK' THEN 4 WHEN 'POP' THEN 5 WHEN 'OTHER' THEN 6 WHEN 'NOVELTY' THEN 7"
             . " WHEN 'HIP_HOP' THEN 9 WHEN 'ELECTRONIC' THEN 10 WHEN 'METAL' THEN 11"
@@ -430,10 +492,21 @@ $V['osu_beatmapsets'] = [
             . " WHEN 'SPANISH' THEN 10 WHEN 'ITALIAN' THEN 11 WHEN 'RUSSIAN' THEN 12"
             . " WHEN 'POLISH' THEN 13 WHEN 'OTHER' THEN 14 ELSE 1 END",
         'nsfw' => 'COALESCE(b.nsfw, 0)',
-        'spotlight' => 'COALESCE(b.spotlight, 0)',
+        // spotlight y track_id vienen copiados del mirror y aca no significan
+        // nada: los 379 sets con spotlight en 1 estuvieron en un spotlight de
+        // ppy, no de Torii, y el badge linkea a una pagina de wiki que no
+        // existe; los 4892 con track_id son Featured Artists de ppy y el badge
+        // linkea a /beatmaps/artists/tracks/{id}, que aca es una tabla vacia.
+        // Torii no tiene ni artistas destacados ni spotlights curados, asi que
+        // el dato se corta en la vista y los dos badges dejan de dibujarse
+        // (beatmapset-badge.tsx no los muestra si el valor viene vacio).
+        //
+        // Si alguna vez Torii cura sus propios spotlights, esto vuelve a ser
+        // b.spotlight y hay que sembrar osu_spotlights.
+        'spotlight' => '0',
         'hype' => 'COALESCE(b.hype_current, 0)',
         'nominations' => 'COALESCE(b.nominations_current, 0)',
-        'track_id' => 'b.track_id',
+        'track_id' => 'NULL',
         'download_disabled' => 'COALESCE(b.download_disabled, 0)',
         'discussion_locked' => 'COALESCE(b.discussion_locked, 0)',
         'displaytitle' => "LEFT(CONCAT(COALESCE(b.artist,''), ' - ', COALESCE(b.title,'')), 200)",
@@ -473,7 +546,24 @@ $V['osu_beatmaps'] = [
         'diff_overall' => 'GREATEST(COALESCE(m.accuracy,0), 0)',
         'diff_approach' => 'GREATEST(COALESCE(m.ar,0), 0)',
         'playmode' => mode_int('m.mode'),
-        'approved' => status_int('m.beatmap_status'),
+        // Una difficulty QUALIFIED dentro de un set que no lo esta es basura del
+        // mirror: qualified es un estado del SET, lo nominan entero, no hay
+        // manera de tener una sola difficulty en la cola de ranking. Son 20
+        // difficulties en 6 sets que estan graveyard o pending.
+        //
+        // Importa porque osu-web filtra el listado por el estado de las
+        // DIFFICULTIES (el filtro Qualified matchea beatmaps.approved en el
+        // indice), asi que esos 6 sets salian en la primera pantalla de
+        // Qualified mostrando su badge de graveyard. Cuando el set manda, el
+        // filtro y el badge vuelven a decir lo mismo.
+        //
+        // Ojo: solo se corrige qualified. El resto de los desacuerdos entre set
+        // y difficulty se dejan como estan porque en osu! son legitimos: cuando
+        // se lovea un set se eligen las difficulties, asi que un set LOVED con
+        // difficulties en graveyard es correcto y no hay que tocarlo.
+        'approved' => "CASE WHEN m.beatmap_status = 'QUALIFIED' AND bs.beatmap_status <> 'QUALIFIED'"
+            . ' THEN ' . status_int('bs.beatmap_status')
+            . ' ELSE ' . status_int('m.beatmap_status') . ' END',
         'last_update' => 'COALESCE(m.last_updated, NOW())',
         'difficultyrating' => 'COALESCE(m.difficulty_rating, 0)',
         'max_combo' => 'LEAST(COALESCE(m.max_combo, 0), 16777215)',
@@ -658,6 +748,10 @@ $V['teams'] = [
         'description' => 't.description',
         'default_ruleset_id' => mode_int('t.playmode'),
         'leader_id' => 't.leader_id',
+        // Torii no tiene equipos cerrados: cualquiera puede pedir entrar. Iba
+        // por filler() con el default de la columna, que es 0, y con eso el
+        // boton de solicitud contestaba 403 a todo el mundo.
+        'is_open' => '1',
         'channel_id' => '0',
         'created_at' => 'COALESCE(t.created_at, NOW())',
         'updated_at' => 'COALESCE(t.created_at, NOW())',
@@ -676,13 +770,21 @@ $V['team_members'] = [
 
 // ---------------------------------------------------------------- actividad --
 
+// Los 13888 eventos de relax y autopilot NO entran, y esta vez no es porque el
+// parser los rechace: es que antes se los disfrazaba de su modo base y el perfil
+// terminaba diciendo que una play de osu!relax era un primer puesto de osu!
+// standard, mezclada con las vanilla y sin ninguna marca. Es la misma razon por
+// la que la vista de scores tampoco los deja pasar (ver el comentario de ahi):
+// mostrarlos de verdad necesita que tengan ruleset propio en osu-web, y eso es
+// un trabajo aparte. Mentir sobre el modo no es una opcion intermedia.
 $V['osu_events'] = [
     'from' => "$src.user_events e",
     'where' => "e.type IN ('RANK','RANK_LOST','ACHIEVEMENT','USERNAME_CHANGE')"
         . " AND CASE e.type"
         . "   WHEN 'ACHIEVEMENT' THEN JSON_EXTRACT(e.event_payload, '$.achievement.name') IS NOT NULL"
         . "   WHEN 'USERNAME_CHANGE' THEN JSON_EXTRACT(e.event_payload, '$.user.previous_username') IS NOT NULL"
-        . "   ELSE JSON_EXTRACT(e.event_payload, '$.beatmap.url') IS NOT NULL END",
+        . "   ELSE JSON_EXTRACT(e.event_payload, '$.beatmap.url') IS NOT NULL"
+        . "     AND " . event_mode() . ' IN ' . EVENT_MODES . ' END',
     'cols' => [
         'event_id' => 'e.id',
         'text' => event_text(),
@@ -719,11 +821,17 @@ $V['osu_user_banhistory'] = [
 // JSON_TABLE lo abre en filas; el change_id se deriva de la posicion para que
 // sea estable entre lecturas.
 $V['osu_username_change_history'] = [
+    // El CHARACTER SET de la columna de JSON_TABLE va escrito: si no se declara
+    // hereda el de la CONEXION, asi que la vista se creaba o no segun con que
+    // charset estuviera conectado el que corria el archivo. Conectado en latin1
+    // reventaba con "COLLATION utf8mb4_general_ci is not valid for CHARACTER
+    // SET latin1" y esa vista quedaba sin crear; el historial de cambios de
+    // nombre desaparecia y nada mas avisaba.
     'from' => "$src.lazer_users u JOIN JSON_TABLE(u.previous_usernames, '$[*]'"
-        . " COLUMNS (uname VARCHAR(30) PATH '$', pos FOR ORDINALITY)) jt",
-    // El COLLATE no es opcional: JSON_TABLE devuelve la cadena con la
-    // collation de la conexion y las tablas de Torii estan en general_ci, asi
-    // que compararlas de una es "illegal mix of collations".
+        . " COLUMNS (uname VARCHAR(30) CHARACTER SET utf8mb4 PATH '$', pos FOR ORDINALITY)) jt",
+    // Y el COLLATE tampoco es opcional: las tablas de Torii estan en general_ci
+    // y comparar contra la de la columna de arriba de una es "illegal mix of
+    // collations".
     'where' => 'JSON_LENGTH(u.previous_usernames) > 0'
         . ' AND jt.uname COLLATE utf8mb4_general_ci <> u.username',
     'cols' => [
@@ -826,6 +934,109 @@ $V['matchmaking_user_elo_history'] = [
     ],
 ];
 
+// -------------------------------------------------------- daily challenge --
+//
+// La pestaña daily challenge del ranking daba 404 y no era por falta de datos:
+// Torii tiene 65 dias de desafio. Lo que faltaba era de donde leerlos, porque
+// osu-web los saca de sus tablas de multiplayer y estaban vacias.
+//
+// El controlador arranca en Room::dailyChallenges()->last() y de ahi baja a la
+// playlist del dia y a los mejores puntajes de esa playlist, o sea tres tablas.
+// La cuarta (multiplayer_rooms_high, el agregado por jugador) se deja como tabla
+// vacia a proposito: solo la lee el panel del jugador logueado y Torii no guarda
+// ese agregado, lo recalcula.
+//
+// torii.daily_challenge NO se usa aca aunque parezca la tabla obvia: es el
+// calendario que arma el desafio (dia -> mapa) y su columna room_id esta mal
+// linkeada, la mitad de las filas la tienen en nulo. La room es la fuente:
+// tiene category DAILY_CHALLENGE y starts_at, que es exactamente lo que osu-web
+// usa para resolver la fecha (DailyChallengeDateHelper::roomId).
+
+$V['multiplayer_rooms'] = [
+    'from' => "$src.rooms r",
+    'cols' => [
+        'id' => 'r.id',
+        'user_id' => 'COALESCE(r.host_id, 0)',
+        'name' => 'LEFT(r.name, 100)',
+        'channel_id' => 'r.channel_id',
+        'starts_at' => 'COALESCE(r.starts_at, NOW())',
+        'ends_at' => 'r.ends_at',
+        // El LEAST no es paranoia: aca la columna es tinyint y max_attempts en
+        // Torii es int. Y el CASE en vez de COALESCE porque nulo significa "sin
+        // limite de intentos" y hay que preservarlo.
+        'max_attempts' => 'CASE WHEN r.max_attempts IS NULL THEN NULL ELSE LEAST(r.max_attempts, 255) END',
+        'participant_count' => 'COALESCE(r.participant_count, 0)',
+        'password' => 'r.password',
+        'type' => 'LOWER(r.type)',
+        'queue_mode' => 'LOWER(r.queue_mode)',
+        'auto_start_duration' => 'COALESCE(r.auto_start_duration, 0)',
+        'auto_skip' => 'COALESCE(r.auto_skip, 0)',
+        // Torii no guarda created_at de la room y DailyChallengeDateHelper lo usa
+        // para saber desde que dia hubo desafios: es el rango del selector de
+        // fechas. starts_at es lo mismo con un dia de precision.
+        'created_at' => 'COALESCE(r.starts_at, NOW())',
+        'updated_at' => 'COALESCE(r.ends_at, r.starts_at, NOW())',
+        // El enum de Torii tiene un valor de mas, REALTIME, que osu-web no
+        // conoce. No hace falta traducirlo: llega como una categoria que ninguna
+        // pantalla pide y queda afuera de todos los filtros.
+        'category' => 'LOWER(r.category)',
+        'status' => 'LOWER(r.status)',
+    ],
+];
+
+// OJO con el id. room_playlists tiene dos: `id` es el numero del item DENTRO de
+// la room (arranca en cero y se repite entre rooms, hay 125 valores distintos
+// para 2336 filas) y `db_id` es la clave primaria de verdad. osu-web espera que
+// el id sea unico global, asi que va db_id, y por eso el join de los puntajes de
+// abajo tiene que ser por (room_id, id) y no por el playlist_id pelado.
+$V['multiplayer_playlist_items'] = [
+    'from' => "$src.room_playlists p",
+    'cols' => [
+        'id' => 'p.db_id',
+        'room_id' => 'p.room_id',
+        'owner_id' => 'COALESCE(p.owner_id, 0)',
+        'beatmap_id' => 'p.beatmap_id',
+        'ruleset_id' => 'p.ruleset_id',
+        'playlist_order' => 'COALESCE(p.playlist_order, 0)',
+        'allowed_mods' => 'COALESCE(p.allowed_mods, JSON_ARRAY())',
+        'required_mods' => 'COALESCE(p.required_mods, JSON_ARRAY())',
+        'freestyle' => 'COALESCE(p.freestyle, 0)',
+        'max_attempts' => 'NULL',
+        'created_at' => 'COALESCE(p.created_at, NOW())',
+        'updated_at' => 'COALESCE(p.updated_at, p.created_at, NOW())',
+        'expired' => 'COALESCE(p.expired, 0)',
+        'played_at' => 'p.played_at',
+    ],
+];
+
+// El leaderboard del dia. accuracy y la fecha salen del score, que es lo que
+// osu-web muestra al lado del puntaje; playlist_best_scores solo guarda el
+// total y los intentos.
+//
+// El filtro por gamemode es el mismo de la vista de scores: si el score no esta
+// en la vista de scores, la relacion score.user se resuelve en nulo y la fila
+// del leaderboard sale sin jugador.
+$V['multiplayer_scores_high'] = [
+    'from' => "$src.playlist_best_scores b"
+        . " JOIN $src.room_playlists p ON p.room_id = b.room_id AND p.id = b.playlist_id"
+        . " JOIN $src.scores s ON s.id = b.score_id",
+    'where' => "b.user_id IS NOT NULL AND s.gamemode IN ('OSU','TAIKO','FRUITS','MANIA')",
+    'cols' => [
+        // La clave primaria de playlist_best_scores es el score, asi que sirve
+        // de id sin inventar nada.
+        'id' => 'b.score_id',
+        'score_id' => 'b.score_id',
+        'user_id' => 'b.user_id',
+        'playlist_item_id' => 'p.db_id',
+        'total_score' => 'COALESCE(b.total_score, 0)',
+        'accuracy' => 'COALESCE(s.accuracy, 0)',
+        'pp' => 's.pp',
+        'attempts' => 'COALESCE(b.attempts, 0)',
+        'created_at' => 'COALESCE(s.ended_at, NOW())',
+        'updated_at' => 'COALESCE(s.ended_at, NOW())',
+    ],
+];
+
 // -------------------------------------------------------------- agregados --
 //
 // El nombre y la bandera de cada pais son catalogo de osu-web, no dato de
@@ -864,13 +1075,27 @@ $V['beatmap_leaders'] = [
 
 // ---------------------------------------------------------------- generador --
 
+// Las columnas que tiene que exponer una vista, leidas de la tabla de osu-web.
+//
+// Devuelve vacio si lo que hay en ese esquema NO es una tabla de verdad, y eso
+// es a proposito: una vista no tiene COLUMN_DEFAULT, y el default de la columna
+// es exactamente lo que usa filler() para todo lo que Torii no llena. Leyendo el
+// layout de la vista de la corrida anterior, regenerar degradaba el archivo en
+// silencio: user_options pasaba de 895 a 0, user_allow_pm de 1 a 0,
+// score_version de 1 a 0, user_dateformat de 'd M Y H:i' a vacio. Nada de eso
+// tira un error, aparece meses despues en una pantalla cualquiera.
 function columns(PDO $pdo, string $schema, string $table): array
 {
     $st = $pdo->prepare(
-        'SELECT COLUMN_NAME, COLUMN_TYPE, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA
-         FROM information_schema.COLUMNS
+        "SELECT COLUMN_NAME, COLUMN_TYPE, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA
+         FROM information_schema.COLUMNS c
          WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-         ORDER BY ORDINAL_POSITION'
+           AND EXISTS (
+               SELECT 1 FROM information_schema.TABLES t
+               WHERE t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME
+                 AND t.TABLE_TYPE = 'BASE TABLE'
+           )
+         ORDER BY ORDINAL_POSITION"
     );
     $st->execute([$schema, $table]);
 
@@ -937,19 +1162,26 @@ $missing = [];
 foreach ($V as $table => $def) {
     // Las vistas nuevas (las de relax y autopilot) no tienen tabla de donde
     // leer el layout, asi que lo piden prestado a la variante que ya existe.
-    // Se busca primero en el esquema de referencia y despues en el destino.
-    // Los dos hacen falta: cuando se regenera despues de mudar tablas a
-    // osu_bak, unas viven alla y otras (las que se prestan el layout, como la
-    // tabla de variante de mania) siguen en osu.
+    //
+    // Se busca en tres esquemas y los tres hacen falta. El de referencia y el
+    // destino porque unas tablas viven en uno y otras en el otro (la de variante
+    // de mania, por ejemplo, nunca se muda). Y el de respaldo porque
+    // torii-views-swap.sql no borra las tablas que reemplaza, las muda a
+    // {destino}_bak: sin esa ultima vuelta el archivo se genera una vez y
+    // despues nunca mas, porque en el destino lo que quedo es la vista.
     $layout = $def['like'] ?? $table;
-    $cols = columns($pdo, $ref, $layout);
+    $cols = [];
 
-    if ($cols === [] && $ref !== $dst) {
-        $cols = columns($pdo, $dst, $layout);
+    foreach ([$ref, $dst, $dst.'_bak'] as $schema) {
+        $cols = columns($pdo, $schema, $layout);
+
+        if ($cols !== []) {
+            break;
+        }
     }
 
     if ($cols === []) {
-        $missing[] = "$ref.$table no existe";
+        $missing[] = "no hay tabla $layout en $ref, $dst ni {$dst}_bak";
         continue;
     }
 
@@ -959,8 +1191,17 @@ foreach ($V as $table => $def) {
     // al modelo como un atributo mas, pero ojo: User::getAttribute es un match
     // sin default, o sea que cada una necesita su linea ahi.
     $extra = $def['extra'] ?? [];
-    $known = $def['cols'];
-    $unknown = array_diff(array_keys($known), array_column($cols, 'COLUMN_NAME'));
+    // El aviso de columnas inexistentes mira SOLO el mapa principal: las extra
+    // por definicion no estan en la tabla de osu-web, ahi justamente esta la
+    // gracia.
+    $unknown = array_diff(array_keys($def['cols']), array_column($cols, 'COLUMN_NAME'));
+    // Pero para resolver expresiones las extra cuentan igual que las otras.
+    // Cuando se regenera leyendo del propio esquema destino, la vista de la
+    // corrida anterior ya trae las extra en su lista de columnas: si no estan en
+    // este mapa caen en el filler y quedan en cero, que es como en una
+    // regeneracion se perdieron los puntos, el aura y el color de nombre de
+    // todos los jugadores.
+    $known = $def['cols'] + $extra;
 
     if ($unknown !== []) {
         $missing[] = "$table: el mapa nombra columnas que no existen: " . implode(', ', $unknown);
