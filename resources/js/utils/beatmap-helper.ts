@@ -122,7 +122,16 @@ export function isOwner(userId: number, beatmap: WithBeatmapOwners<BeatmapJson>)
 }
 
 export function shouldShowPp(beatmap: BeatmapJson) {
-  return beatmap.status === 'ranked' || beatmap.status === 'approved';
+  // torii: en Torii dan pp todos los estados, loved y graveyard incluidos, asi
+  // que el estado del mapa no decide nada. Arriba decidia, y el resultado era
+  // que un top play de 1300pp en un loved se mostraba como un corazon con el
+  // cartel "only ranked beatmaps award pp".
+  //
+  // La decision queda en el score, no en el mapa: PpValue ya muestra un guion
+  // cuando score.ranked viene en falso o cuando el server no calculo pp. O sea
+  // que la excepcion la marca el server, que es el unico que sabe (los mods sin
+  // pp son una lista negra, no una lista blanca).
+  return true;
 }
 
 export function sort<T extends BeatmapJson>(beatmaps: T[]): T[] {
