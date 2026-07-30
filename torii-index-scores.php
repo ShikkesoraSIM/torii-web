@@ -20,9 +20,21 @@
 // Uso:
 //   php torii-index-scores.php              incremental: solo los scores nuevos
 //   php torii-index-scores.php --full       reconstruye de cero
+//   php torii-index-scores.php --watch      se queda mirando (cada 3 segundos)
+//   php torii-index-scores.php --watch=10   idem, cada 10
 //
-// El incremental es el que va por cron. Arranca del id mas alto que ya esta
-// indexado, asi que corre en segundos aunque haya doscientos mil scores.
+// El incremental arranca del id mas alto que ya esta indexado, asi que corre en
+// segundos aunque haya doscientos mil scores.
+//
+// --watch existe porque por cron el atraso era el periodo del cron: con la
+// corrida cada cinco minutos, meter una play y verla en el leaderboard o en tu
+// Best Performance tardaba hasta cinco minutos. Y no hay nada que optimizar
+// para llegar a eso: una pasada sin scores nuevos son dos consultas. Asi que en
+// vez de afinar el cron, se queda prendido.
+//
+// Vuelve a resolver el alias en cada pasada a proposito: si mientras esta vivo
+// corre un --full, el alias termina en un indice nuevo y el que mira tiene que
+// seguirlo, no seguir escribiendo en el viejo que despues se borra.
 
 const ES = 'http://elasticsearch:9200';
 const ALIAS = 'scores';
@@ -120,10 +132,29 @@ $db = new PDO("mysql:host={$host};dbname={$name};charset=utf8mb4", $user, $pass,
 // ------------------------------------------------------------------ modo ----
 
 $full = in_array('--full', $argv, true);
+
+$watch = 0;
+foreach ($argv as $arg) {
+    if ($arg === '--watch') {
+        $watch = 3;
+    } elseif (str_starts_with($arg, '--watch=')) {
+        $watch = max(1, (int) substr($arg, 8));
+    }
+}
+
+if ($full && $watch > 0) {
+    fwrite(STDERR, "--full y --watch no van juntos: el que mira sigue el alias que deje el full\n");
+    exit(1);
+}
+
 $live = currentIndex();
 
 if ($live === null) {
     // Sin alias no hay nada que actualizar: la primera corrida es completa.
+    if ($watch > 0) {
+        fwrite(STDERR, "todavia no hay indice: corre una vez con --full antes de mirar\n");
+        exit(1);
+    }
     $full = true;
 }
 
@@ -169,6 +200,10 @@ ORDER BY s.id LIMIT
 SQL;
 $stmt = $db->prepare($sql . ' ' . CHUNK);
 
+// Una pasada: mete en $index todo lo que tenga id mayor a $after y devuelve
+// cuantos entraron. Se llama una vez sola en el modo normal, y en bucle cuando
+// se queda mirando.
+$pasada = function (string $index, int $after, bool $callado) use ($stmt): int {
 $total = 0;
 while (true) {
     $stmt->execute([$after]);
@@ -211,10 +246,51 @@ while (true) {
     }
 
     $total += count($rows);
-    echo "\rindexados {$total}";
+    if (!$callado) {
+        echo "\rindexados {$total}";
+    }
 }
 
-es('POST', '/' . $index . '/_refresh');
+if ($total > 0) {
+    es('POST', '/' . $index . '/_refresh');
+}
+
+return $total;
+};
+
+// ------------------------------------------------------------------ bucle ---
+
+if ($watch > 0) {
+    // Que un docker compose down / restart lo baje en el acto y no a los diez
+    // segundos por SIGKILL.
+    if (function_exists('pcntl_async_signals')) {
+        pcntl_async_signals(true);
+        foreach ([SIGTERM, SIGINT] as $sig) {
+            pcntl_signal($sig, function () { echo "\nchau\n"; exit(0); });
+        }
+    }
+
+    echo "mirando cada {$watch}s (alias " . ALIAS . ")\n";
+
+    while (true) {
+        // El alias se resuelve de nuevo en cada vuelta: un --full lo mueve a un
+        // indice nuevo y hay que seguirlo.
+        $activo = currentIndex();
+
+        if ($activo === null) {
+            fwrite(STDERR, date('H:i:s') . " el alias " . ALIAS . " no existe, esperando\n");
+        } else {
+            $n = $pasada($activo, maxIndexedId($activo), true);
+            if ($n > 0) {
+                echo date('H:i:s') . " +{$n}\n";
+            }
+        }
+
+        sleep($watch);
+    }
+}
+
+$total = $pasada($index, $after, false);
 
 // ------------------------------------------------------------------ alias ---
 

@@ -53,12 +53,38 @@ services:
   # score diciendo que es #1 del mundo, porque el rank es "1 + cuantos te ganan"
   # y sobre cero eso da 1 siempre.
   #
-  # Los scores los indexa torii-index-scores.php desde la tabla, por cron.
+  # Los scores los indexa torii-index-scores.php, aca abajo.
   score-indexer:
     profiles: ["apagado"]
 
   score-indexer-test:
     profiles: ["apagado"]
+
+  # El nuestro, que si hace backfill. Antes iba por cron cada cinco minutos y el
+  # atraso era ese: metias una play y tardaba hasta cinco minutos en aparecer en
+  # el leaderboard del mapa y en tu Best Performance. La base no tiene ese
+  # problema (la web lee vistas en vivo), era solo elasticsearch.
+  #
+  # Asi que en vez de afinar el cron se queda prendido mirando. Una pasada sin
+  # scores nuevos son dos consultas, o sea que estar cada tres segundos no cuesta
+  # nada. En el cron queda solo el --full de la madrugada.
+  #
+  # El comando entra por el caso comodin de docker/development/run.sh, que
+  # ejecuta cualquier cosa que no sea uno de sus verbos conocidos.
+  torii-indexer:
+    # La ruta se resuelve contra el directorio del PROYECTO (la raiz del repo),
+    # no contra este archivo.
+    extends:
+      file: compose.yaml
+      service: php
+    command: ["php", "/app/torii-index-scores.php", "--watch"]
+    networks: [default, g0v0]
+    restart: unless-stopped
+    environment:
+      DB_HOST: osu_api_mysql
+      DB_USERNAME: toriiweb
+      DB_PASSWORD: "${DB_PASSWORD}"
+      TORII_SOURCE_SCHEMA: osu_api
 
   # Los de dusk tambien: php-dusk corre con APP_ENV=dusk.local y expone
   # /_dusk/login/{id}, que loguea como cualquier usuario sin contrasena.

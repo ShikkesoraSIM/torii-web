@@ -20,7 +20,11 @@ TORII_WEB=/home/toriiadm/torii-web
 #
 # Cada 5 minutos, y en modo incremental: arranca del id mas alto que ya esta
 # indexado, asi que son segundos aunque haya doscientos mil scores.
-*/5 * * * * cd $TORII_WEB && docker compose -f compose.yaml -f deploy/prod/compose.prod.yml run --rm --no-deps php php /app/torii-index-scores.php >/dev/null 2>&1
+#
+# El incremental ya NO va por cron: lo hace el servicio torii-indexer, que se
+# queda mirando cada tres segundos. Por cron el atraso era el periodo del cron.
+# Aca queda solo la reconstruccion de la madrugada, que ademas limpia los
+# indices viejos.
 
 # Y una reconstruccion completa por dia, de madrugada.
 #
