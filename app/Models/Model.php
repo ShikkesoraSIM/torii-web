@@ -8,6 +8,7 @@ namespace App\Models;
 use App\Exceptions\ModelNotSavedException;
 use App\Libraries\MorphMap;
 use App\Libraries\Torii\WriteThrough;
+use App\Libraries\Torii\WriteThroughBuilder;
 use App\Libraries\Transactions\AfterCommit;
 use App\Libraries\Transactions\AfterRollback;
 use App\Libraries\TransactionStateManager;
@@ -48,6 +49,10 @@ abstract class Model extends BaseModel
     protected function performUpdate(Builder $query)
     {
         WriteThrough::update($this);
+        // Es el mismo objeto al que parent le va a llamar update(), asi que la
+        // marca llega: dice que este update ya paso por WriteThrough y que el
+        // builder no lo tiene que volver a desviar por instancias.
+        $this->markToriiInstanceWrite($query);
 
         return parent::performUpdate($query);
     }
@@ -74,6 +79,13 @@ abstract class Model extends BaseModel
         }
 
         parent::performDeleteOnModel();
+    }
+
+    // torii: un query builder propio para que los update y delete masivos, que
+    // no cargan instancias, tambien pasen por WriteThrough.
+    public function newEloquentBuilder($query)
+    {
+        return new WriteThroughBuilder($query);
     }
 
     protected static function searchQueryAndParams(array $params)
@@ -319,6 +331,13 @@ abstract class Model extends BaseModel
     protected function validationErrorsTranslationPrefix(): string
     {
         return '';
+    }
+
+    private function markToriiInstanceWrite(Builder $query): void
+    {
+        if ($query instanceof WriteThroughBuilder) {
+            $query->toriiInstanceWrite = true;
+        }
     }
 
     private function enlistCallbacks($model, $connection)

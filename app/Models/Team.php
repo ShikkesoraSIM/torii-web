@@ -47,6 +47,16 @@ class Team extends Model implements AfterCommit, Indexable, Traits\ReportableInt
         return $this->hasMany(TeamApplication::class);
     }
 
+    // torii: los equipos de Torii no tienen canal de chat y esta relacion
+    // devuelve nulo siempre. La vista teams expone channel_id = 0 fijo porque
+    // torii.teams no tiene donde guardarlo, asi que un canal creado desde aca
+    // quedaria huerfano: se crea, se le mete gente, y al recargar el equipo
+    // nadie sabe cual era. Por eso no se crea ninguno y los lugares que lo
+    // usaban (dar de alta un miembro, sacarlo, borrar el equipo) trabajan sin
+    // canal, que era el "Call to a member function removeUser() on null".
+    //
+    // La relacion queda porque el dia que g0v0 tenga la columna alcanza con
+    // volver a enganchar el alta.
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Chat\Channel::class, 'channel_id');
@@ -116,7 +126,6 @@ class Team extends Model implements AfterCommit, Indexable, Traits\ReportableInt
         $this->getConnection()->transaction(function () use ($application) {
             $application->delete();
             $this->members()->create(['user_id' => $application->getKey()]);
-            $this->channel->addUser($application->user);
         });
 
         (new TeamApplicationAccept($application, $this->leader))->dispatch();
@@ -127,59 +136,23 @@ class Team extends Model implements AfterCommit, Indexable, Traits\ReportableInt
         dispatch(new EsDocument($this));
     }
 
-    public function createChannel(): Chat\Channel
-    {
-        if ($this->channel !== null) {
-            return $this->channel;
-        }
-
-        $channel = new Chat\Channel([
-            'name' => truncate($this->name, 50),
-            'type' => Chat\Channel::TYPES['team'],
-        ]);
-        $channel->saveOrExplode();
-        $this->channel()->associate($channel);
-
-        return $channel;
-    }
-
     public function delete()
     {
         $this->header()->delete();
         $this->flag()->delete();
 
         return $this->getConnection()->transaction(function () {
-            return (new Chat\Channel())->getConnection()->transaction(function () {
-                $ret = parent::delete();
+            // torii: los miembros y las solicitudes van ANTES que el equipo.
+            // torii.team_members tiene una foreign key contra torii.teams y
+            // MySQL rechaza el borrado mientras queden filas apuntando; upstream
+            // los borra despues porque en su esquema esa foreign key no existe.
+            // Va todo en la misma transaccion, asi que si el borrado del equipo
+            // falla no queda un equipo vacio.
+            $this->applications()->delete();
+            $this->members()->delete();
+            $this->statistics()->delete();
 
-                if ($ret) {
-                    $this->applications()->delete();
-                    $this->members()->delete();
-                    $this->statistics()->delete();
-
-                    $channel = $this->channel;
-                    if ($channel !== null) {
-                        $channel->loadMissing('userChannels.user');
-
-                        foreach ($channel->userChannels as $userChannel) {
-                            $user = $userChannel->user;
-                            if ($user === null) {
-                                $userChannel->delete();
-                            } else {
-                                $channel->removeUser($user);
-                            }
-                        }
-
-                        if ($channel->messages()->count() === 0) {
-                            $channel->delete();
-                        } else {
-                            $channel->update(['name' => "#DeletedTeam_{$this->getKey()}"]);
-                        }
-                    }
-                }
-
-                return $ret;
-            });
+            return parent::delete();
         });
     }
 
@@ -298,13 +271,7 @@ class Team extends Model implements AfterCommit, Indexable, Traits\ReportableInt
             throw new InvariantException('can not remove leader from the team');
         }
 
-        $this->getConnection()->transaction(function () use ($member) {
-            $member->delete();
-            $user = $member->user;
-            if ($user !== null) {
-                $this->channel->removeUser($user);
-            }
-        });
+        $member->delete();
     }
 
     public function save(array $options = [])
@@ -315,23 +282,18 @@ class Team extends Model implements AfterCommit, Indexable, Traits\ReportableInt
 
         if (!$this->exists) {
             return $this->getConnection()->transaction(function () use ($options) {
-                return (new Chat\Channel())->getConnection()->transaction(function () use ($options) {
-                    $this->channel_id ??= 0;
-                    $this->default_ruleset_id ??= $this->leader->osu_playmode;
-                    $saved = parent::save($options);
+                $this->channel_id ??= 0;
+                $this->default_ruleset_id ??= $this->leader->osu_playmode;
+                $saved = parent::save($options);
 
-                    if ($saved) {
-                        $this->members()->create(['user_id' => $this->leader_id]);
+                if ($saved) {
+                    $this->members()->create(['user_id' => $this->leader_id]);
 
-                        $channel = $this->createChannel();
-                        $channel->addUser($this->leader);
+                    $this->flag()->updateFile();
+                    $this->header()->updateFile();
+                }
 
-                        $this->flag()->updateFile();
-                        $this->header()->updateFile();
-                    }
-
-                    return parent::save($options);
-                });
+                return parent::save($options);
             });
         }
 
