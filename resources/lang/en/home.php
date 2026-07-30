@@ -95,6 +95,27 @@ return [
         'quick_start_guide' => 'quick start guide',
         'tagline_1' => 'let\'s get you',
         'tagline_2' => 'started!',
+
+        // torii: los tres streams del cliente. El boton grande de arriba baja el
+        // estable; esto es para el que quiere otro.
+        'torii_streams' => [
+            'title' => 'other builds',
+            'description' => 'all three connect to the same server and share your account, scores and pp. you can switch between them at any time from the game settings.',
+            'version' => 'version :version',
+            'changelog' => 'release notes',
+            'torii' => [
+                'name' => 'Torii',
+                'description' => 'the stable build. this is the one you want unless you have a reason not to.',
+            ],
+            'nova' => [
+                'name' => 'Torii Nova',
+                'description' => 'runs ahead of stable on a newer runtime. new features land here first, and so do new bugs.',
+            ],
+            'vanilla' => [
+                'name' => 'Torii Vanilla',
+                'description' => 'upstream osu!lazer, unmodified except for pointing at this server. no Torii features.',
+            ],
+        ],
         'video-guide' => 'video guide',
 
         'help' => [

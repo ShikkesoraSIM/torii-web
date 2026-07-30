@@ -1,0 +1,94 @@
+// torii: los tres streams del cliente en la pagina de descarga.
+//
+// Va debajo del banner, en la misma columna. Tres tarjetas iguales que se
+// apilan en una sola cuando no entran, sin ancho fijo: los nombres y las
+// versiones cambian de largo (Torii Vanilla contra Torii) y el texto de cada una
+// son dos renglones o tres segun el idioma.
+
+.torii-streams {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 30px;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__title {
+    .default-text-shadow();
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  &__lead {
+    color: @osu-colour-c1;
+    font-size: 14px;
+    margin: 0;
+    // El parrafo no se estira a todo el ancho de la pagina: leerlo de punta a
+    // punta en un monitor ancho es incomodo.
+    max-width: 62ch;
+  }
+
+  &__list {
+    display: grid;
+    // auto-fit y no un numero de columnas: en el celular queda una sola y en el
+    // medio quedan dos, sin media queries.
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px;
+  }
+
+  &__item {
+    background-color: @osu-colour-b5;
+    border-radius: @border-radius-large;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px;
+    // El boton queda pegado abajo aunque las descripciones midan distinto, asi
+    // que los tres botones quedan alineados entre si.
+    justify-content: space-between;
+  }
+
+  &__name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  &__version {
+    color: @osu-colour-c1;
+    font-size: 12px;
+    // Las versiones son numeros que se comparan de un vistazo entre las tres
+    // tarjetas.
+    font-variant-numeric: tabular-nums;
+    margin-top: -6px;
+  }
+
+  &__detail {
+    color: @osu-colour-c1;
+    font-size: 13px;
+    // Sin margen propio: el gap del contenedor ya separa.
+    margin: 0;
+    // Empuja las acciones al fondo de la tarjeta.
+    flex: 1;
+  }
+
+  &__actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  &__link {
+    color: @osu-colour-c1;
+    font-size: 12px;
+
+    &:hover {
+      color: @osu-colour-c2;
+    }
+  }
+}

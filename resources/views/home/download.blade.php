@@ -54,7 +54,49 @@
                  m1.ppy.sh, el espejo a m2.ppy.sh y el fallback de macOS a
                  osx.ppy.sh. Torii no tiene cliente stable ni build de macOS
                  legacy, y los tres servian binarios de ppy que no se conectan
-                 aca, asi que el bloque entero no va. --}}
+                 aca, asi que el bloque entero no va.
+
+                 En su lugar van los tres streams del cliente. El boton grande
+                 de arriba baja el estable; esto es para el que quiere otro.
+                 Cada uno resuelve su propio tag: ver Torii\Releases. --}}
+            @if (count($toriiStreams) > 1)
+                <div class="torii-streams">
+                    <div class="torii-streams__header">
+                        <h2 class="torii-streams__title">{{ osu_trans('home.download.torii_streams.title') }}</h2>
+                        <p class="torii-streams__lead">{{ osu_trans('home.download.torii_streams.description') }}</p>
+                    </div>
+                    <div class="torii-streams__list">
+                        @foreach ($toriiStreams as $stream)
+                            <div class="torii-streams__item torii-streams__item--{{ $stream['id'] }}">
+                                <div class="torii-streams__name">{{ $stream['nombre'] }}</div>
+                                @if (present($stream['version']))
+                                    <div class="torii-streams__version">
+                                        {{ osu_trans('home.download.torii_streams.version', ['version' => $stream['version']]) }}
+                                    </div>
+                                @endif
+                                <p class="torii-streams__detail">{{ $stream['detalle'] }}</p>
+                                <div class="torii-streams__actions">
+                                    <a class="btn-osu-big btn-osu-big--rounded-thin" href="{{ $stream['url'] }}">
+                                        <div class="btn-osu-big__content">
+                                            <div class="btn-osu-big__left">
+                                                {{ osu_trans('home.download.download') }}
+                                            </div>
+                                            <span class="btn-osu-big__icon">
+                                                <span class="svg-icon svg-icon--download"></span>
+                                            </span>
+                                        </div>
+                                    </a>
+                                    @if (present($stream['notas']))
+                                        <a class="torii-streams__link" href="{{ $stream['notas'] }}" rel="nofollow noreferrer">
+                                            {{ osu_trans('home.download.torii_streams.changelog') }}
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </div>
 
         <div class="download-page__guide">

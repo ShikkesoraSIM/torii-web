@@ -10,6 +10,7 @@ use App\Libraries\CurrentStats;
 use App\Libraries\MenuContent;
 use App\Libraries\Search\AllSearch;
 use App\Libraries\Search\QuickSearch;
+use App\Libraries\Torii\Releases;
 use App\Models\BeatmapDownload;
 use App\Models\Beatmapset;
 use App\Models\Build;
@@ -108,11 +109,38 @@ class HomeController extends Controller
             'type' => 'download',
         ];
 
+        // torii: los tres streams del cliente. Las urls fijas de config apuntan
+        // a /releases/latest/download/, que en github es la ultima release SIN
+        // prerelease, o sea que siempre daban la estable: nova y vanilla estan
+        // marcadas prerelease y no se podian ofrecer. Ver Torii\Releases.
+        $streams = [];
+        foreach (Releases::STREAMS as $stream) {
+            $datos = Releases::stream($stream);
+            $url = Releases::url($stream, $platform);
+
+            // ios no se descarga: va por testflight, y ahi no hay streams.
+            if ($url === null || $platform === 'ios') {
+                continue;
+            }
+
+            $streams[] = [
+                'id' => $stream,
+                'nombre' => osu_trans("home.download.torii_streams.{$stream}.name"),
+                'detalle' => osu_trans("home.download.torii_streams.{$stream}.description"),
+                'version' => $datos['version'] ?? null,
+                'notas' => $datos['notas'] ?? null,
+                'url' => $url,
+            ];
+        }
+
         return ext_view('home.download', [
-            'lazerUrl' => osu_url("lazer_dl.{$platform}"),
+            'lazerUrl' => Releases::url('torii', $platform) ?? osu_url("lazer_dl.{$platform}"),
             'lazerPlatformName' => $lazerPlatformNames[$platform],
             'selectOptions' => $selectOptions,
-            'version' => $version,
+            'toriiStreams' => $streams,
+            // La tabla de builds de osu-web esta vacia en Torii: la version sale
+            // del tag de la release estable.
+            'version' => Releases::stream('torii')['version'] ?? $version,
         ]);
     }
 
