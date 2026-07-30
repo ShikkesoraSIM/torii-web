@@ -110,6 +110,11 @@ services:
       USER_ACHIEVEMENT_ICON_PREFIX: https://assets.ppy.sh/medals/web/
       # /__clockwork/latest publica la cookie de sesion del ultimo request.
       CLOCKWORK_ENABLE: "false"
+      # Sin esto aparece la franja roja de "Evaluation instance of Torii running
+      # on real server data" al pie de cada pagina. El default de config/osu.php
+      # es true, o sea que basta con no declararlo para que salga, y va declarado
+      # aca y no en el .env porque el .env no esta en el repo.
+      IS_DEVELOPMENT_DEPLOY: "false"
       # Sin esto config/trustedproxy.php queda vacio y Laravel ignora todos los
       # X-Forwarded-*: veria http en vez de https y la ip del gateway de la
       # bridge en vez de la del usuario.

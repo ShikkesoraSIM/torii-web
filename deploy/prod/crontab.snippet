@@ -48,6 +48,14 @@ TORII_WEB=/home/toriiadm/torii-web
 # Cada hora. Lo que queda viejo entre corridas es cuantas plays tiene un mapa;
 # nada que cambie la experiencia por tener sesenta minutos.
 23 * * * * cd $TORII_WEB && TORII_SOURCE_SCHEMA=osu_api ./torii-render.sh torii-cache.sql | docker exec -i osu_api_mysql mysql -uroot -ppassword --default-character-set=utf8mb4 >/dev/null 2>&1
+#
+# Los agregados por pais y por equipo. NO son vistas: osu-web los guarda en
+# country_statistics y team_statistics, tablas propias que llena un comando. Sin
+# esto las dos paginas contestan 200 con cero filas, que es la clase de falla que
+# no se nota. Los dos comandos suman solo lo que User::default() deja pasar, o
+# sea que respetan los baneados y las restricciones.
+37 * * * * cd $TORII_WEB && docker compose -f compose.yaml -f deploy/prod/compose.prod.yml run --rm --no-deps php ./artisan rankings:recalculate-country-stats >/dev/null 2>&1
+47 * * * * cd $TORII_WEB && docker compose -f compose.yaml -f deploy/prod/compose.prod.yml run --rm --no-deps php ./artisan rankings:recalculate-team-stats >/dev/null 2>&1
 
 # ---------------------------------------------------------------- perfiles ----
 #
