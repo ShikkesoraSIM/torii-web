@@ -63,6 +63,15 @@ CREATE TABLE IF NOT EXISTS osu.torii_cache_beatmapset (
     PRIMARY KEY (beatmapset_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- El hilo del foro que le presta la descripcion a cada set. Ver el bloque de
+-- mas abajo para el por que.
+CREATE TABLE IF NOT EXISTS osu.torii_cache_beatmapset_description (
+    beatmapset_id INT UNSIGNED NOT NULL,
+    thread_id MEDIUMINT UNSIGNED NOT NULL,
+    PRIMARY KEY (beatmapset_id),
+    UNIQUE KEY uniq_thread_id (thread_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS osu.torii_cache_beatmap_leader (
     score_id BIGINT UNSIGNED NOT NULL,
     beatmap_id INT UNSIGNED NOT NULL,
@@ -126,6 +135,104 @@ SELECT id, beatmap_id, ruleset_id, user_id FROM (
       AND s.gamemode IN ('OSU','TAIKO','FRUITS','MANIA')
       AND b.beatmap_status IN ('RANKED','APPROVED','LOVED')
 ) t WHERE rn = 1;
+
+-- ------------------------------------------ descripcion de los beatmapsets --
+--
+-- La descripcion de un set no vive en su fila: osu-web la guarda como el primer
+-- post del hilo del foro del set, con una linea de quince guiones separando los
+-- metadatos de la descripcion propiamente dicha, y la lee por
+-- beatmapsets.thread_id -> phpbb_topics.topic_first_post_id -> phpbb_posts
+-- (Libraries\Beatmapset\Description). Por eso salia vacia en los 108665 sets:
+-- Torii la tiene en beatmapsets.description y no habia ningun hilo.
+--
+-- No puede ser una vista porque los ids no dan: topic_id y post_id son mediumint
+-- (tope 16.7 millones) y los sets de Torii llegan a 800 millones, asi que no hay
+-- forma de derivar el id del hilo del id del set. Se numeran de corrido con
+-- ROW_NUMBER a partir de 8000000, que es la mitad de arriba del rango y queda
+-- lejos de cualquier hilo de verdad (el foro de este esquema no llega a 2
+-- millones).
+--
+-- Lo que llega de Torii ya es HTML renderizado (viene asi del mirror), no bbcode
+-- de phpbb. Eso es justo lo que hace falta: los parsers de BBCodeFromDB buscan
+-- [tag:uid] y no encuentran nada, y el HTML sale por el otro lado pasado por
+-- HTMLPurifier, que es la sanitizacion que corresponde igual. Se guarda el
+-- CONTENIDO del div, sin el div, porque el div lo agrega toHTML() al final.
+
+-- El foro donde cuelgan esos hilos. Hace falta que exista: cuando el set tiene
+-- thread_id, el json del beatmapset trae legacy_thread_url apuntando al hilo, y
+-- TopicsController pide los permisos del foro del hilo. Con el foro en nulo eso
+-- es un TypeError, o sea un 500 en vez de un hilo.
+--
+-- Es un foro de SISTEMA (el 6 es el que osu-web trae configurado para esto), no
+-- una seccion del foro de verdad, asi que no tiene que salir en el indice con 33
+-- mil hilos sin autor. display_on_index no alcanza: ForumsController lista los
+-- foros con parent_id = 0 y ni lo mira. Lo que si lo saca de todas las listas es
+-- darle un padre que no existe (el tope del mediumint): no es raiz y no es hijo
+-- de nadie, pero el hilo se sigue abriendo por url y los permisos resuelven.
+--
+-- El precio de no ser raiz es que forum_parents tiene que traer algo valido:
+-- Forum::getForumParentsAttribute solo devuelve la lista vacia de una si
+-- parent_id es 0, y en cualquier otro caso hace unserialize de esta columna. Con
+-- la cadena vacia eso da false y el opengraph del hilo revienta al iterarlo, asi
+-- que va el array vacio serializado como lo escribe phpbb.
+--
+-- INSERT IGNORE y no ON DUPLICATE KEY UPDATE: si algun dia el foro 6 existe de
+-- verdad, esto no lo pisa.
+INSERT IGNORE INTO osu.phpbb_forums
+    (forum_id, parent_id, forum_name, forum_desc, forum_parents, forum_rules, forum_type, display_on_index)
+VALUES (6, 16777215, 'Beatmap Descriptions', '', 'a:0:{}', '', 1, 0);
+
+-- El ROW_NUMBER de abajo ordena 33 mil filas y con el sort_buffer_size que trae
+-- MySQL de fabrica (256 kB) muere con "Out of sort memory": no usa el indice de
+-- la clave primaria porque el WHERE filtra antes. Es para esta sesion nada mas.
+SET SESSION sort_buffer_size = 67108864;
+
+TRUNCATE TABLE osu.torii_cache_beatmapset_description;
+INSERT INTO osu.torii_cache_beatmapset_description (beatmapset_id, thread_id)
+SELECT id, 8000000 + rn FROM (
+    SELECT b.id, ROW_NUMBER() OVER (ORDER BY b.id) AS rn
+    FROM @@SRC@@.beatmapsets b
+    -- El LIKE exige el envoltorio exacto porque los INSERT de abajo cortan por
+    -- largo fijo; el CHAR_LENGTH descarta los 945 sets cuya descripcion es el
+    -- envoltorio vacio, que no merecen hilo.
+    WHERE JSON_UNQUOTE(JSON_EXTRACT(b.description, '$.description'))
+              LIKE '<div class=''bbcode bbcode--normal-line-height''>%</div>'
+      AND CHAR_LENGTH(JSON_UNQUOTE(JSON_EXTRACT(b.description, '$.description')))
+              > CHAR_LENGTH('<div class=''bbcode bbcode--normal-line-height''></div>')
+) t;
+
+DELETE FROM osu.phpbb_topics WHERE topic_id >= 8000000;
+DELETE FROM osu.phpbb_posts WHERE post_id >= 8000000;
+
+-- topic_status en 1 es "cerrado", que es como osu-web deja los hilos de
+-- descripcion (Topic::lock()). El post y el hilo comparten el numero: son tablas
+-- distintas y asi no hay que guardar dos ids.
+INSERT INTO osu.phpbb_topics
+    (topic_id, forum_id, topic_title, topic_poster, topic_time, topic_status,
+     topic_first_post_id, topic_last_post_id, topic_last_post_time, topic_first_poster_name)
+SELECT d.thread_id, 6, LEFT(CONCAT(COALESCE(b.artist, ''), ' - ', COALESCE(b.title, '')), 255),
+       0, UNIX_TIMESTAMP(COALESCE(b.submitted_date, b.last_updated, NOW())), 1,
+       d.thread_id, d.thread_id,
+       UNIX_TIMESTAMP(COALESCE(b.last_updated, b.submitted_date, NOW())),
+       LEFT(COALESCE(b.creator, ''), 255)
+FROM osu.torii_cache_beatmapset_description d
+JOIN @@SRC@@.beatmapsets b ON b.id = d.beatmapset_id;
+
+INSERT INTO osu.phpbb_posts
+    (post_id, topic_id, forum_id, poster_id, post_time, post_text, bbcode_uid, post_postcount)
+SELECT d.thread_id, d.thread_id, 6, 0,
+       UNIX_TIMESTAMP(COALESCE(b.submitted_date, b.last_updated, NOW())),
+       CONCAT('---------------', CHAR(10),
+              SUBSTRING(
+                  JSON_UNQUOTE(JSON_EXTRACT(b.description, '$.description')),
+                  CHAR_LENGTH('<div class=''bbcode bbcode--normal-line-height''>') + 1,
+                  CHAR_LENGTH(JSON_UNQUOTE(JSON_EXTRACT(b.description, '$.description')))
+                      - CHAR_LENGTH('<div class=''bbcode bbcode--normal-line-height''>')
+                      - CHAR_LENGTH('</div>')
+              )),
+       '', 0
+FROM osu.torii_cache_beatmapset_description d
+JOIN @@SRC@@.beatmapsets b ON b.id = d.beatmapset_id;
 
 -- Cuantos jugadores tienen cada medalla, que es el porcentaje que se muestra al
 -- lado. osu_achievements sigue siendo tabla de verdad porque el catalogo sale

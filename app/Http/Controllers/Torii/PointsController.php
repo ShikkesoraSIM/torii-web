@@ -25,17 +25,40 @@ class PointsController extends Controller
 
     public function index()
     {
-        static $maxResults = 1000;
+        // El h1 y el <title> de esta pagina decian literal "unknown", y el menu
+        // de arriba se pintaba como si fuera la seccion community.
+        //
+        // Los dos salen del namespace del controlador: page_title() busca
+        // page_title.{namespace}.{controlador}.{accion} y RouteSection hace lo
+        // mismo con su propio mapa. Los dos mapas son de upstream y solo
+        // conocen App\Http\Controllers y App\Http\Controllers\Ranking, asi que
+        // cualquier cosa colgada de \Torii cae al fallback ('unknown' y
+        // 'community' respectivamente).
+        //
+        // Se declara aca a mano en vez de agregarle una entrada 'torii' a esos
+        // dos mapas para no dejar nada del fork en archivos que se
+        // resincronizan con ppy. RouteSection respeta el atributo si ya viene
+        // puesto en la request, y esto corre antes de que la vista lo pida.
+        \Request::instance()->attributes->set('route_section', [
+            'action' => 'index',
+            'controller' => 'ranking_controller',
+            'namespace' => 'main',
+            'section' => 'rankings',
+        ]);
 
-        $maxPage = $maxResults / static::PAGE_SIZE;
+        // Los que tienen saldo son unos 300, no mil. Con el tope fijo de
+        // upstream el paginador ofrecia 20 paginas y 14 salian vacias.
+        $query = User::default()->where('torii_points', '>', 0);
+        $total = (clone $query)->count();
+
+        $maxPage = max(1, (int) ceil($total / static::PAGE_SIZE));
         $page = min(get_int(request('page')) ?? 1, $maxPage);
 
-        $scores = User::default()
+        $scores = $query
             ->with('team')
-            ->where('torii_points', '>', 0)
             ->orderBy('torii_points', 'desc')
             ->orderBy('user_id', 'asc')
-            ->paginate(static::PAGE_SIZE, ['*'], 'page', $page, $maxResults);
+            ->paginate(static::PAGE_SIZE, ['*'], 'page', $page, $total);
 
         if (is_json_request()) {
             return ['ranking' => json_collection($scores, new UserCompactTransformer())];

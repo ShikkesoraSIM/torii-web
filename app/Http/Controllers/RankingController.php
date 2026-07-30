@@ -18,7 +18,6 @@ use App\Transformers\BeatmapsetTransformer;
 use App\Transformers\CountryStatisticsTransformer;
 use App\Transformers\SpotlightTransformer;
 use App\Transformers\TeamStatisticsTransformer;
-use App\Transformers\UserCompactTransformer;
 use App\Transformers\UserStatisticsTransformer;
 use DB;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,15 +31,21 @@ class RankingController extends Controller
     const MAX_RESULTS = 10000;
     const PAGE_SIZE = Model::PER_PAGE;
     // in display order
+    //
+    // torii: aca faltan dos que trae upstream.
+    //
+    //   - 'playlists' apuntaba a /seasons/latest y Torii no tiene seasons ni
+    //     tabla donde ponerlas, asi que la pestaña era un 404 en el menu de
+    //     todo el sitio.
+    //   - 'kudosu' listaba los 791 jugadores en 0/0/0: el kudosu se gana
+    //     modeando y en Torii no hay modding.
     const TYPES = [
         'global',
         'country',
         'top_plays',
         'team',
-        'playlists',
         'matchmaking',
         'daily_challenge',
-        'kudosu',
         // torii: la moneda del servidor. OJO, url() de abajo es un match SIN
         // default y nav_links() lo llama para CADA tipo en cada request: sumar
         // un tipo sin su brazo no rompe esta pagina, rompe el menu de todo el
@@ -87,6 +92,33 @@ class RankingController extends Controller
             ]),
             'top_plays' => route('rankings.top-plays', ['mode' => $params['mode'] ?? default_mode()]),
         };
+    }
+
+    // torii: saca del listado a los que no tienen que estar.
+    //
+    // Upstream no necesita nada de esto porque su osu_user_stats es una tabla
+    // que mantiene un job: al banear a alguien le borra la fila, y al que se
+    // queda quieto tres meses le pone el pp en cero. Aca la fila es una vista
+    // sobre g0v0 y nadie la toca, asi que el corte va en la consulta.
+    //
+    //   - Cuentas apagadas: baneadas y borradas. La vista phpbb_users las marca
+    //     con user_type = 1 leyendo is_active de g0v0. Sin este filtro salian
+    //     con el pp intacto, y habia una arriba del puesto cien.
+    //   - Inactivos de mas de tres meses, el mismo plazo que usa osu!. Se caen
+    //     del listado nada mas: el perfil sigue mostrando todo su pp, su
+    //     historial y sus mejores plays.
+    //
+    // Va sobre la relacion y no sobre un join para no pelearse con el FORCE
+    // INDEX que arma el caso global mas abajo.
+    private const DIAS_PARA_INACTIVO = 90;
+
+    private static function soloRankeables(Builder $stats): void
+    {
+        $corte = now()->subDays(static::DIAS_PARA_INACTIVO)->timestamp;
+
+        $stats->whereHas('user', function (Builder $q) use ($corte) {
+            $q->where('user_type', 0)->where('user_lastvisit', '>=', $corte);
+        });
     }
 
     private static function getFilter(?string $filter): string
@@ -230,6 +262,7 @@ class RankingController extends Controller
 
                 $class = UserStatistics\Model::getClass($mode, $params['variant']);
                 $stats = $class::with(['user', 'user.country', 'user.team'])->where('rank_score', '>', 0);
+                static::soloRankeables($stats);
 
                 if ($params['country'] === null) {
                     // force to order by rank(ed)_score instead of sucking down entire users table first.
@@ -265,8 +298,12 @@ class RankingController extends Controller
                 break;
         }
 
-        $maxResults = $this->maxResults($rulesetId, $countryStats ?? null, $stats, $params);
-        $maxPages = ceil($maxResults / static::PAGE_SIZE);
+        $maxResults = $this->maxResults($rulesetId, $stats, $params);
+        // El piso de 1 pagina no es decorativo: con maxResults en cero (un modo
+        // sin nadie que puntue) el clamp de abajo deja la pagina en 0 y el
+        // offset sale negativo, que es un error de sql. Upstream nunca lo vio
+        // porque nunca cuenta: siempre devolvia el tope.
+        $maxPages = max(1, (int) ceil($maxResults / static::PAGE_SIZE));
         $page = get_int(cursor_from_params($rawParams)['page'] ?? null)
             ?? get_int($rawParams['page'] ?? null)
             ?? 1;
@@ -351,42 +388,26 @@ class RankingController extends Controller
     /**
      * Get Kudosu Ranking
      *
-     * Gets the kudosu ranking.
-     *
-     * ---
-     *
-     * ### Response format
-     *
-     * Field   | Type            | Description
-     * ------- | --------------- | -----------
-     * ranking | [User](#user)[] | Includes `kudosu`.
-     *
-     * @queryParam page Ranking page. Example: 1
+     * Not available on this server: kudosu is earned by modding and there's no
+     * modding here. Always responds 404.
      */
     public function kudosu()
     {
-        static $maxResults = 1000;
-
-        $maxPage = $maxResults / static::PAGE_SIZE;
-        $page = min(get_int(request('page')) ?? 1, $maxPage);
-
-        $scores = User::default()
-            ->with('team')
-            ->orderBy('osu_kudostotal', 'desc')
-            ->paginate(static::PAGE_SIZE, ['*'], 'page', $page, $maxResults);
-
-        if (is_json_request()) {
-            return ['ranking' => json_collection(
-                $scores,
-                new UserCompactTransformer(),
-                'kudosu',
-            )];
-        }
-
-        return ext_view('rankings.kudosu', compact('scores'));
+        // El kudosu se gana modeando y en Torii no hay modding: la tabla listaba
+        // los 791 jugadores empatados en 0/0/0. Por eso 'kudosu' salio de TYPES.
+        //
+        // Y por eso ademas la pagina tiene que morir aca y no seguir: la vista
+        // rankings.kudosu hereda de rankings.index, que arma el menu recorriendo
+        // TYPES y busca cual esta activo para el menu de celular. Sin 'kudosu'
+        // en la lista no hay ninguno activo y eso es un 500, no una pagina fea.
+        //
+        // La ruta sigue declarada en routes/web.php (upstream) y tambien la sirve
+        // /api/v2/rankings/kudosu, asi que las dos contestan lo mismo: aca no
+        // existe.
+        abort(404, 'kudosu ranking is not available on this server');
     }
 
-    private function maxResults(int $rulesetId, ?CountryStatistics $countryStats, Builder $stats, array $params): int
+    private function maxResults(int $rulesetId, Builder $stats, array $params): int
     {
         switch ($params['type']) {
             case 'country':
@@ -402,26 +423,30 @@ class RankingController extends Controller
                     return $stats->count();
                 }
 
-                $maxResults = static::MAX_RESULTS;
+                // torii: upstream nunca cuenta aca. Devuelve el tope de 10000 y
+                // ya, porque con millones de jugadores el numero exacto no le
+                // sirve a nadie y contar seria carisimo. Con 437 jugadores que
+                // puntuan el paginador ofrecia 200 paginas y 191 salian vacias,
+                // asi que aca se cuenta de verdad: es una pasada por la vista
+                // del modo, cientos de filas, y encima queda cacheado.
+                //
+                // Tambien reemplaza a osu_countries.user_count, que upstream
+                // usaba para el filtro por pais: esa columna la calcula la
+                // vista sobre las estadisticas de osu! solamente, asi que en
+                // cualquier otro modo daba un total prestado del ranking de osu.
+                $cacheKey = 'torii_ranking_count:'.json_encode([
+                    $params['country'],
+                    $params['mode'],
+                    $params['sort'],
+                    $params['variant'],
+                ]);
 
-                if ($countryStats === null) {
-                    return $maxResults;
-                }
-
-                // use slower row count as there's no country statistics entry for variants
-                if ($params['variant'] !== null) {
-                    sort($params);
-                    $cacheKey = 'ranking_count:'.json_encode($params);
-
-                    return cache_remember_mutexed(
-                        $cacheKey,
-                        300,
-                        $maxResults,
-                        fn () => min($stats->count(), $maxResults),
-                    );
-                }
-
-                return min($countryStats->user_count, $maxResults);
+                return cache_remember_mutexed(
+                    $cacheKey,
+                    300,
+                    static::MAX_RESULTS,
+                    fn () => min($stats->count(), static::MAX_RESULTS),
+                );
         }
     }
 
