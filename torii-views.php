@@ -45,6 +45,11 @@ foreach ([$src, $dst, $ref] as $s) {
     }
 }
 
+// La tabla de sanciones de g0v0, ya con el esquema pegado. Va como constante
+// porque la usa rankeable(), que se llama desde rank_window() y no recibe $src.
+// Se define despues de validar el nombre del esquema.
+define('SRC_RESTRICCIONES', "$src.user_account_history");
+
 $pdo = new PDO("mysql:host=".(getenv('DB_HOST') ?: 'db').";charset=utf8mb4", getenv('DB_USERNAME') ?: 'root', getenv('DB_PASSWORD') ?: '');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
@@ -217,7 +222,18 @@ $V['phpbb_users'] = [
         'osu_subscriber' => '(u.is_supporter = 1)',
         'osu_subscriptionexpiry' => 'u.donor_end_at',
         'support_length' => 'COALESCE(u.total_supporter_months, 0)',
-        'user_warnings' => '0',
+        // El ban de moderacion de Torii, que es OTRO mecanismo distinto de
+        // is_active: una restriccion deja la cuenta prendida y escribe una fila
+        // en user_account_history. osu-web lee user_warnings > 0 como
+        // sancionado (isRestricted), y con eso User::default() los saca de los
+        // rankings, de la busqueda, del ranking por pais y del perfil publico
+        // sin tocar nada mas.
+        //
+        // Misma cuenta que hace g0v0 en is_restricted_query: permanente, o con
+        // el plazo todavia sin vencer.
+        'user_warnings' => 'IF(EXISTS (SELECT 1 FROM ' . SRC_RESTRICCIONES . ' h'
+            . " WHERE h.user_id = u.id AND h.type = 'RESTRICTION'"
+            . ' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())), 1, 0)',
         // El avatar y la portada son el NOMBRE del archivo, no la url: osu-web
         // arma la ruta con el id del usuario mas ese nombre y nginx la proxea a
         // la api de Torii. AvatarHelper ademas convierte el guion bajo del
@@ -347,10 +363,53 @@ $V['phpbb_zebra'] = [
 //
 // Los que tienen cero pp no tienen posicion. No hace falta excluirlos del
 // ORDER BY: caen al final y no corren la numeracion de los que si puntuan.
+// Los mismos numeros que usa el juego. Estan escritos en g0v0 en
+// app/database/statistics.py, que dice ser "the single source of truth for the
+// thresholds": si alla cambian, cambian aca.
+//
+//   ACTIVE_DAYS = 30  el que no jugo ESE modo en 30 dias se cae del ranking
+//   GREY_DAYS   = 15  de 15 a 30 sigue rankeado pero el cliente lo atenua
+const DIAS_ACTIVO = 30;
+const DIAS_GRIS = 15;
+
+// Quien entra al ranking, copiado de get_rank() de g0v0. Cinco condiciones, y me
+// faltaban tres:
+//
+//   - pp > 0                        ya estaba
+//   - is_ranked                     la fila de stats tiene que estar rankeada
+//   - cuenta prendida               is_active
+//   - sin restriccion vigente       user_account_history, permanente o sin vencer.
+//                                   ESTE es el ban de moderacion, y es el que se
+//                                   escapaba: la cuenta queda is_active = 1, asi
+//                                   que habia 14 restringidos en el ranking, uno
+//                                   con 12.609pp.
+//   - jugo ese modo en 30 dias      y va sobre last_played del MODO, no sobre
+//                                   last_visit del usuario: last_visit se
+//                                   actualiza con cualquier contacto del cliente,
+//                                   asi que el que abre el juego y no juega
+//                                   contaba como activo.
+function rankeable(): string
+{
+    return 'COALESCE(s.pp,0) > 0'
+        . ' AND COALESCE(s.is_ranked,0) = 1'
+        . ' AND u.is_active = 1'
+        . ' AND s.last_played >= NOW() - INTERVAL ' . DIAS_ACTIVO . ' DAY'
+        . ' AND NOT EXISTS (SELECT 1 FROM ' . SRC_RESTRICCIONES . ' h'
+        . " WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION'"
+        . ' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW()))';
+}
+
+// La posicion tiene que numerarse SOLO entre los que entran, o si no la web
+// muestra un numero y el cliente otro. Con ROW_NUMBER no alcanza: cuenta las
+// filas que no entran igual, porque ordenan antes. La suma corrida sobre el
+// criterio da, para cada fila que entra, cuantas que entran hay con pp mayor o
+// igual, que es exactamente la posicion.
 function rank_window(string $order): string
 {
-    return "CAST(ROW_NUMBER() OVER (" . ($order === 'country' ? 'PARTITION BY u.country_code ' : '')
-         . "ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED)";
+    return 'CAST(SUM(CASE WHEN ' . rankeable() . ' THEN 1 ELSE 0 END) OVER ('
+         . ($order === 'country' ? 'PARTITION BY u.country_code ' : '')
+         . 'ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC'
+         . ' ROWS UNBOUNDED PRECEDING) AS SIGNED)';
 }
 
 function user_stats(string $src, string $mode): array
@@ -359,8 +418,8 @@ function user_stats(string $src, string $mode): array
         'from' => "$src.lazer_user_statistics s JOIN $src.lazer_users u ON u.id = s.user_id",
         'where' => "s.mode = '$mode'",
         'cols' => [
-            'rank_score_index' => 'CASE WHEN COALESCE(s.pp,0) > 0 THEN ' . rank_window('global') . ' ELSE 0 END',
-            'rank' => 'CASE WHEN COALESCE(s.pp,0) > 0 THEN ' . rank_window('country') . ' ELSE 0 END',
+            'rank_score_index' => 'CASE WHEN ' . rankeable() . ' THEN ' . rank_window('global') . ' ELSE 0 END',
+            'rank' => 'CASE WHEN ' . rankeable() . ' THEN ' . rank_window('country') . ' ELSE 0 END',
             'user_id' => 's.user_id',
             'count300' => 'COALESCE(s.count_300,0)',
             'count100' => 'COALESCE(s.count_100,0)',
@@ -385,6 +444,12 @@ function user_stats(string $src, string $mode): array
             'last_played' => 'COALESCE(s.last_played, NOW())',
             'total_seconds_played' => 'COALESCE(s.play_time,0)',
         ],
+        // Los 15 a 30 dias sin jugar ese modo: entran al ranking pero el cliente
+        // los pinta atenuados. Se expone para que la web haga lo mismo y las dos
+        // pantallas se vean igual.
+        'extra' => [
+            'torii_inactivo' => 'CASE WHEN s.last_played < NOW() - INTERVAL ' . DIAS_GRIS . ' DAY THEN 1 ELSE 0 END',
+        ],
     ];
 }
 
@@ -408,11 +473,17 @@ function user_stats_variant(string $src, string $mode): array
             'a_rank_count' => 'COALESCE(s.grade_a,0)',
             'country_acronym' => "COALESCE(NULLIF(u.country_code,''),'XX')",
             'rank_score' => 'COALESCE(s.pp,0)',
-            'rank_score_index' => 'CASE WHEN COALESCE(s.pp,0) > 0 THEN ' . rank_window('global') . ' ELSE 0 END',
+            'rank_score_index' => 'CASE WHEN ' . rankeable() . ' THEN ' . rank_window('global') . ' ELSE 0 END',
             'ranked_score' => 'COALESCE(s.ranked_score,0)',
             'accuracy_new' => 'COALESCE(s.hit_accuracy,0)',
             'last_update' => 'NOW()',
             'last_played' => 'COALESCE(s.last_played, NOW())',
+        ],
+        // Los 15 a 30 dias sin jugar ese modo: entran al ranking pero el cliente
+        // los pinta atenuados. Se expone para que la web haga lo mismo y las dos
+        // pantallas se vean igual.
+        'extra' => [
+            'torii_inactivo' => 'CASE WHEN s.last_played < NOW() - INTERVAL ' . DIAS_GRIS . ' DAY THEN 1 ELSE 0 END',
         ],
     ];
 }

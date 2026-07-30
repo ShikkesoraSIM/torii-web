@@ -28,7 +28,7 @@ SELECT
     '' AS `user_lastpage`,
     '' AS `user_last_confirm_key`,
     0 AS `user_last_search`,
-    0 AS `user_warnings`,
+    IF(EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = u.id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())), 1, 0) AS `user_warnings`,
     0 AS `user_last_warning`,
     0 AS `user_login_attempts`,
     0 AS `user_inactive_reason`,
@@ -143,11 +143,12 @@ SELECT
     COALESCE(s.grade_a,0) AS `a_rank_count`,
     COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
     COALESCE(s.pp,0) AS `rank_score`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank_score_index`,
     COALESCE(s.ranked_score,0) AS `ranked_score`,
     COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
     NOW() AS `last_update`,
-    COALESCE(s.last_played, NOW()) AS `last_played`
+    COALESCE(s.last_played, NOW()) AS `last_played`,
+    CASE WHEN s.last_played < NOW() - INTERVAL 15 DAY THEN 1 ELSE 0 END AS `torii_inactivo`
 FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
 WHERE s.mode = 'OSURX'
 ;
@@ -166,11 +167,12 @@ SELECT
     COALESCE(s.grade_a,0) AS `a_rank_count`,
     COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
     COALESCE(s.pp,0) AS `rank_score`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank_score_index`,
     COALESCE(s.ranked_score,0) AS `ranked_score`,
     COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
     NOW() AS `last_update`,
-    COALESCE(s.last_played, NOW()) AS `last_played`
+    COALESCE(s.last_played, NOW()) AS `last_played`,
+    CASE WHEN s.last_played < NOW() - INTERVAL 15 DAY THEN 1 ELSE 0 END AS `torii_inactivo`
 FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
 WHERE s.mode = 'OSUAP'
 ;
@@ -189,11 +191,12 @@ SELECT
     COALESCE(s.grade_a,0) AS `a_rank_count`,
     COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
     COALESCE(s.pp,0) AS `rank_score`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank_score_index`,
     COALESCE(s.ranked_score,0) AS `ranked_score`,
     COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
     NOW() AS `last_update`,
-    COALESCE(s.last_played, NOW()) AS `last_played`
+    COALESCE(s.last_played, NOW()) AS `last_played`,
+    CASE WHEN s.last_played < NOW() - INTERVAL 15 DAY THEN 1 ELSE 0 END AS `torii_inactivo`
 FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
 WHERE s.mode = 'TAIKORX'
 ;
@@ -212,11 +215,12 @@ SELECT
     COALESCE(s.grade_a,0) AS `a_rank_count`,
     COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
     COALESCE(s.pp,0) AS `rank_score`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank_score_index`,
     COALESCE(s.ranked_score,0) AS `ranked_score`,
     COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
     NOW() AS `last_update`,
-    COALESCE(s.last_played, NOW()) AS `last_played`
+    COALESCE(s.last_played, NOW()) AS `last_played`,
+    CASE WHEN s.last_played < NOW() - INTERVAL 15 DAY THEN 1 ELSE 0 END AS `torii_inactivo`
 FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
 WHERE s.mode = 'FRUITSRX'
 ;
@@ -243,7 +247,7 @@ SELECT
     COALESCE(s.grade_s,0) AS `s_rank_count`,
     COALESCE(s.grade_sh,0) AS `sh_rank_count`,
     COALESCE(s.grade_a,0) AS `a_rank_count`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (PARTITION BY u.country_code ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (PARTITION BY u.country_code ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank`,
     COALESCE(s.level_current,1) AS `level`,
     COALESCE(s.replays_watched_by_others,0) AS `replay_popularity`,
     0 AS `fail_count`,
@@ -251,11 +255,12 @@ SELECT
     LEAST(COALESCE(s.maximum_combo,0), 65535) AS `max_combo`,
     COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
     COALESCE(s.pp,0) AS `rank_score`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank_score_index`,
     COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
     NOW() AS `last_update`,
     COALESCE(s.last_played, NOW()) AS `last_played`,
-    COALESCE(s.play_time,0) AS `total_seconds_played`
+    COALESCE(s.play_time,0) AS `total_seconds_played`,
+    CASE WHEN s.last_played < NOW() - INTERVAL 15 DAY THEN 1 ELSE 0 END AS `torii_inactivo`
 FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
 WHERE s.mode = 'OSU'
 ;
@@ -282,7 +287,7 @@ SELECT
     COALESCE(s.grade_s,0) AS `s_rank_count`,
     COALESCE(s.grade_sh,0) AS `sh_rank_count`,
     COALESCE(s.grade_a,0) AS `a_rank_count`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (PARTITION BY u.country_code ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (PARTITION BY u.country_code ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank`,
     COALESCE(s.level_current,1) AS `level`,
     COALESCE(s.replays_watched_by_others,0) AS `replay_popularity`,
     0 AS `fail_count`,
@@ -290,11 +295,12 @@ SELECT
     LEAST(COALESCE(s.maximum_combo,0), 65535) AS `max_combo`,
     COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
     COALESCE(s.pp,0) AS `rank_score`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank_score_index`,
     COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
     NOW() AS `last_update`,
     COALESCE(s.last_played, NOW()) AS `last_played`,
-    COALESCE(s.play_time,0) AS `total_seconds_played`
+    COALESCE(s.play_time,0) AS `total_seconds_played`,
+    CASE WHEN s.last_played < NOW() - INTERVAL 15 DAY THEN 1 ELSE 0 END AS `torii_inactivo`
 FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
 WHERE s.mode = 'TAIKO'
 ;
@@ -321,7 +327,7 @@ SELECT
     COALESCE(s.grade_s,0) AS `s_rank_count`,
     COALESCE(s.grade_sh,0) AS `sh_rank_count`,
     COALESCE(s.grade_a,0) AS `a_rank_count`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (PARTITION BY u.country_code ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (PARTITION BY u.country_code ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank`,
     COALESCE(s.level_current,1) AS `level`,
     COALESCE(s.replays_watched_by_others,0) AS `replay_popularity`,
     0 AS `fail_count`,
@@ -329,11 +335,12 @@ SELECT
     LEAST(COALESCE(s.maximum_combo,0), 65535) AS `max_combo`,
     COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
     COALESCE(s.pp,0) AS `rank_score`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank_score_index`,
     COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
     NOW() AS `last_update`,
     COALESCE(s.last_played, NOW()) AS `last_played`,
-    COALESCE(s.play_time,0) AS `total_seconds_played`
+    COALESCE(s.play_time,0) AS `total_seconds_played`,
+    CASE WHEN s.last_played < NOW() - INTERVAL 15 DAY THEN 1 ELSE 0 END AS `torii_inactivo`
 FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
 WHERE s.mode = 'FRUITS'
 ;
@@ -360,7 +367,7 @@ SELECT
     COALESCE(s.grade_s,0) AS `s_rank_count`,
     COALESCE(s.grade_sh,0) AS `sh_rank_count`,
     COALESCE(s.grade_a,0) AS `a_rank_count`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (PARTITION BY u.country_code ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (PARTITION BY u.country_code ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank`,
     COALESCE(s.level_current,1) AS `level`,
     COALESCE(s.replays_watched_by_others,0) AS `replay_popularity`,
     0 AS `fail_count`,
@@ -368,11 +375,12 @@ SELECT
     LEAST(COALESCE(s.maximum_combo,0), 65535) AS `max_combo`,
     COALESCE(NULLIF(u.country_code,''),'XX') AS `country_acronym`,
     COALESCE(s.pp,0) AS `rank_score`,
-    CASE WHEN COALESCE(s.pp,0) > 0 THEN CAST(ROW_NUMBER() OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC) AS SIGNED) ELSE 0 END AS `rank_score_index`,
+    CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN CAST(SUM(CASE WHEN COALESCE(s.pp,0) > 0 AND COALESCE(s.is_ranked,0) = 1 AND u.is_active = 1 AND s.last_played >= NOW() - INTERVAL 30 DAY AND NOT EXISTS (SELECT 1 FROM torii.user_account_history h WHERE h.user_id = s.user_id AND h.type = 'RESTRICTION' AND (h.permanent = 1 OR TIMESTAMPADD(SECOND, h.length, h.timestamp) > NOW())) THEN 1 ELSE 0 END) OVER (ORDER BY COALESCE(s.pp,0) DESC, s.user_id ASC ROWS UNBOUNDED PRECEDING) AS SIGNED) ELSE 0 END AS `rank_score_index`,
     COALESCE(s.hit_accuracy,0) AS `accuracy_new`,
     NOW() AS `last_update`,
     COALESCE(s.last_played, NOW()) AS `last_played`,
-    COALESCE(s.play_time,0) AS `total_seconds_played`
+    COALESCE(s.play_time,0) AS `total_seconds_played`,
+    CASE WHEN s.last_played < NOW() - INTERVAL 15 DAY THEN 1 ELSE 0 END AS `torii_inactivo`
 FROM torii.lazer_user_statistics s JOIN torii.lazer_users u ON u.id = s.user_id
 WHERE s.mode = 'MANIA'
 ;

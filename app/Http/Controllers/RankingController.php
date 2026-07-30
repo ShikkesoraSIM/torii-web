@@ -94,31 +94,26 @@ class RankingController extends Controller
         };
     }
 
-    // torii: saca del listado a los que no tienen que estar.
+    // torii: mismo listado que muestra el juego.
     //
     // Upstream no necesita nada de esto porque su osu_user_stats es una tabla
-    // que mantiene un job: al banear a alguien le borra la fila, y al que se
-    // queda quieto tres meses le pone el pp en cero. Aca la fila es una vista
-    // sobre g0v0 y nadie la toca, asi que el corte va en la consulta.
+    // que mantiene un job. Aca la fila es una vista sobre g0v0, asi que el
+    // criterio vive en la vista: rank_score_index sale en cero cuando el
+    // jugador no entra al ranking, y son las cinco condiciones de get_rank()
+    // de g0v0 (pp, is_ranked, cuenta prendida, sin restriccion vigente, y que
+    // haya jugado ESE modo en los ultimos 30 dias). Ver rankeable() en
+    // torii-views.php.
     //
-    //   - Cuentas apagadas: baneadas y borradas. La vista phpbb_users las marca
-    //     con user_type = 1 leyendo is_active de g0v0. Sin este filtro salian
-    //     con el pp intacto, y habia una arriba del puesto cien.
-    //   - Inactivos de mas de tres meses, el mismo plazo que usa osu!. Se caen
-    //     del listado nada mas: el perfil sigue mostrando todo su pp, su
-    //     historial y sus mejores plays.
-    //
-    // Va sobre la relacion y no sobre un join para no pelearse con el FORCE
-    // INDEX que arma el caso global mas abajo.
-    private const DIAS_PARA_INACTIVO = 90;
-
+    // Filtrar por la posicion y no por cada condicion suelta tiene una ventaja
+    // que no es solo de prolijidad: la posicion que se filtra es la MISMA que
+    // se muestra. Antes esto tenia su propia regla (90 dias sobre last_visit) y
+    // pasaban dos cosas. Una, last_visit se actualiza con cualquier contacto
+    // del cliente, asi que el que abria el juego sin jugar contaba como activo.
+    // Y dos, no miraba las restricciones de moderacion, que dejan la cuenta
+    // is_active = 1: habia 14 restringidos en el listado, uno con 12.609pp.
     private static function soloRankeables(Builder $stats): void
     {
-        $corte = now()->subDays(static::DIAS_PARA_INACTIVO)->timestamp;
-
-        $stats->whereHas('user', function (Builder $q) use ($corte) {
-            $q->where('user_type', 0)->where('user_lastvisit', '>=', $corte);
-        });
+        $stats->where('rank_score_index', '>', 0);
     }
 
     private static function getFilter(?string $filter): string
