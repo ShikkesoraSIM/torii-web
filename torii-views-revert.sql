@@ -11,7 +11,9 @@ DROP VIEW IF EXISTS osu.phpbb_users, osu.phpbb_user_group, osu.phpbb_zebra,
     osu.osu_user_banhistory, osu.osu_username_change_history,
     osu.osu_user_performance_rank, osu.osu_user_performance_rank_highest,
     osu.osu_countries, osu.beatmap_leaders, osu.matchmaking_pools,
-    osu.matchmaking_user_stats, osu.matchmaking_user_elo_history;
+    osu.matchmaking_user_stats, osu.matchmaking_user_elo_history,
+    osu.multiplayer_rooms, osu.multiplayer_playlist_items,
+    osu.multiplayer_scores_high;
 
 RENAME TABLE
     osu_bak.phpbb_users                        TO osu.phpbb_users,
@@ -41,4 +43,7 @@ RENAME TABLE
     osu_bak.beatmap_leaders                    TO osu.beatmap_leaders,
     osu_bak.matchmaking_pools                  TO osu.matchmaking_pools,
     osu_bak.matchmaking_user_stats             TO osu.matchmaking_user_stats,
-    osu_bak.matchmaking_user_elo_history       TO osu.matchmaking_user_elo_history;
+    osu_bak.matchmaking_user_elo_history       TO osu.matchmaking_user_elo_history,
+    osu_bak.multiplayer_rooms                  TO osu.multiplayer_rooms,
+    osu_bak.multiplayer_playlist_items         TO osu.multiplayer_playlist_items,
+    osu_bak.multiplayer_scores_high            TO osu.multiplayer_scores_high;

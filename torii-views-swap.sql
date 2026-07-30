@@ -63,4 +63,11 @@ RENAME TABLE
     -- existen casi iguales, porque su esquema salio del de ellos.
     osu.matchmaking_pools                  TO osu_bak.matchmaking_pools,
     osu.matchmaking_user_stats             TO osu_bak.matchmaking_user_stats,
-    osu.matchmaking_user_elo_history       TO osu_bak.matchmaking_user_elo_history;
+    osu.matchmaking_user_elo_history       TO osu_bak.matchmaking_user_elo_history,
+    -- Y las salas. Sin mudarlas el CREATE VIEW rebota contra la tabla (un DROP
+    -- VIEW IF EXISTS no tira una tabla) y la web se queda leyendo las de
+    -- osu-web, que estan en cero mientras g0v0 tiene cuatrocientas y pico. No
+    -- da error en ninguna pantalla: ranked play y el multi se ven vacios.
+    osu.multiplayer_rooms                  TO osu_bak.multiplayer_rooms,
+    osu.multiplayer_playlist_items         TO osu_bak.multiplayer_playlist_items,
+    osu.multiplayer_scores_high            TO osu_bak.multiplayer_scores_high;
