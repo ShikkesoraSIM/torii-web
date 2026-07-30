@@ -129,10 +129,21 @@ ok "conexiones de la web abiertas ahora: ${conn:-?} (tope 40)"
 
 # -------------------------------------------------------------- errores ------
 head_ "errores en el log"
+
+# GitHubNotFoundException queda afuera: es lo que loguea osu-web cuando alguien
+# pide una pagina de wiki que no existe, o sea un 404 de los normales. Se
+# comprobo pidiendo una pagina que SI existe: suma cero. Contarlo hacia que este
+# chequeo fallara para siempre por un visitante escribiendo mal una url.
 errs=$(docker compose -f compose.yaml -f deploy/prod/compose.prod.yml exec -T php \
-        sh -c 'tail -400 /app/storage/logs/laravel.log 2>/dev/null | grep -ac "production.ERROR"' 2>/dev/null)
-[ "${errs:-0}" -eq 0 ] && ok "sin errores en las ultimas 400 lineas" \
+        sh -c 'tail -400 /app/storage/logs/laravel.log 2>/dev/null | grep -a "production.ERROR" | grep -avc "GitHubNotFoundException"' \
+        < /dev/null 2>/dev/null)
+[ "${errs:-0}" -eq 0 ] && ok "sin errores propios en las ultimas 400 lineas" \
    || bad "${errs} errores en las ultimas 400 lineas del log"
+
+wiki404=$(docker compose -f compose.yaml -f deploy/prod/compose.prod.yml exec -T php \
+        sh -c 'tail -400 /app/storage/logs/laravel.log 2>/dev/null | grep -ac "GitHubNotFoundException"' \
+        < /dev/null 2>/dev/null)
+[ "${wiki404:-0}" -gt 0 ] && ok "(y ${wiki404} paginas de wiki pedidas que no existen, eso es normal)"
 
 printf '\n'
 if [ "$fallos" -eq 0 ]; then
