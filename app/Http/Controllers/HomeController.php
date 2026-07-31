@@ -62,9 +62,14 @@ class HomeController extends Controller
         ];
     }
 
-    public function getDownload()
+    /**
+     * torii: los nombres de plataforma, la deteccion, y las tres tarjetas de
+     * streams salieron de getDownload porque la portada las usa igual: ofrece
+     * las descargas ahi mismo en vez de mandar a /download primero.
+     */
+    private static function lazerPlatformNames(): array
     {
-        $lazerPlatformNames = [
+        return [
             'android' => osu_trans('home.download.os_version_or_later', ['os_version' => 'Android 5']),
             'ios' => osu_trans('home.download.os_version_or_later', ['os_version' => 'iOS 13.4']),
             'linux_x64' => 'Linux (x64)',
@@ -72,48 +77,42 @@ class HomeController extends Controller
             'macos_intel' => osu_trans('home.download.os_version_or_later', ['os_version' => 'macOS 12']).' (Intel)',
             'windows_x64' => osu_trans('home.download.os_version_or_later', ['os_version' => 'Windows 10']).' (x64)',
         ];
+    }
 
+    private static function detectPlatform(): string
+    {
         $platform = get_string(request('platform'));
-        if (!array_key_exists($platform, $lazerPlatformNames)) {
-            $deviceDetector = new DeviceDetector(\Request::header('User-Agent') ?? '');
-            $deviceDetector->parse();
-            $family = $deviceDetector->getOs('family');
 
-            $platform = match ($family) {
-                // Try matching most likely platform first
-                'Windows' => 'windows_x64',
-                // current iPadOS declares itself as a desktop browser.
-                'iOS' => 'ios',
-                // FIXME: Figure out a way to differentiate Intel and Apple Silicon.
-                'Mac' => 'macos_as',
-                'Android' => 'android',
-                'GNU/Linux' => 'linux_x64',
-                default => 'windows_x64',
-            };
+        if ($platform !== null && array_key_exists($platform, static::lazerPlatformNames())) {
+            return $platform;
         }
 
-        $version = Build::where(['stream_id' => $GLOBALS['cfg']['osu']['client']['download_stream'], 'test_build' => false])
-            ->orderBy('build_id', 'desc')
-            ->first()
-            ?->version;
+        $deviceDetector = new DeviceDetector(\Request::header('User-Agent') ?? '');
+        $deviceDetector->parse();
 
-        $items = [];
-        foreach ($lazerPlatformNames as $key => $value) {
-            $items[] = ['id' => $key, 'text' => $value];
-        }
+        return match ($deviceDetector->getOs('family')) {
+            // Try matching most likely platform first
+            'Windows' => 'windows_x64',
+            // current iPadOS declares itself as a desktop browser.
+            'iOS' => 'ios',
+            // FIXME: Figure out a way to differentiate Intel and Apple Silicon.
+            'Mac' => 'macos_as',
+            'Android' => 'android',
+            'GNU/Linux' => 'linux_x64',
+            default => 'windows_x64',
+        };
+    }
 
-        $selectOptions = [
-            'currentItem' => ['id' => $platform, 'text' => osu_trans('home.download.other_os')],
-            'items' => $items,
-            'modifiers' => 'download',
-            'type' => 'download',
-        ];
-
-        // torii: los tres streams del cliente. Las urls fijas de config apuntan
-        // a /releases/latest/download/, que en github es la ultima release SIN
-        // prerelease, o sea que siempre daban la estable: nova y vanilla estan
-        // marcadas prerelease y no se podian ofrecer. Ver Torii\Releases.
+    /**
+     * torii: los tres streams del cliente. Las urls fijas de config apuntan a
+     * /releases/latest/download/, que en github es la ultima release SIN
+     * prerelease, o sea que siempre daban la estable: nova y vanilla estan
+     * marcadas prerelease y no se podian ofrecer. Ver Torii\Releases.
+     */
+    private static function toriiStreams(string $platform): array
+    {
         $streams = [];
+
         foreach (Releases::STREAMS as $stream) {
             $datos = Releases::stream($stream);
             $url = Releases::url($stream, $platform);
@@ -133,11 +132,36 @@ class HomeController extends Controller
             ];
         }
 
+        return $streams;
+    }
+
+    public function getDownload()
+    {
+        $lazerPlatformNames = static::lazerPlatformNames();
+        $platform = static::detectPlatform();
+
+        $version = Build::where(['stream_id' => $GLOBALS['cfg']['osu']['client']['download_stream'], 'test_build' => false])
+            ->orderBy('build_id', 'desc')
+            ->first()
+            ?->version;
+
+        $items = [];
+        foreach ($lazerPlatformNames as $key => $value) {
+            $items[] = ['id' => $key, 'text' => $value];
+        }
+
+        $selectOptions = [
+            'currentItem' => ['id' => $platform, 'text' => osu_trans('home.download.other_os')],
+            'items' => $items,
+            'modifiers' => 'download',
+            'type' => 'download',
+        ];
+
         return ext_view('home.download', [
             'lazerUrl' => Releases::url('torii', $platform) ?? osu_url("lazer_dl.{$platform}"),
             'lazerPlatformName' => $lazerPlatformNames[$platform],
             'selectOptions' => $selectOptions,
-            'toriiStreams' => $streams,
+            'toriiStreams' => static::toriiStreams($platform),
             // La tabla de builds de osu-web esta vacia en Torii: la version sale
             // del tag de la release estable.
             'version' => Releases::stream('torii')['version'] ?? $version,
@@ -177,7 +201,17 @@ class HomeController extends Controller
         } else {
             $news = json_collection($news, new NewsPostTransformer());
 
-            return ext_view('home.landing', ['stats' => new CurrentStats(), 'news' => $news]);
+            $platform = static::detectPlatform();
+
+            // torii: las descargas van en la portada misma. El que llega sin
+            // cuenta viene a ver si vale la pena bajarlo, y mandarlo a otra
+            // pagina para recien ahi mostrarle el boton es un paso de mas.
+            return ext_view('home.landing', [
+                'stats' => new CurrentStats(),
+                'news' => $news,
+                'toriiStreams' => static::toriiStreams($platform),
+                'toriiPlatformName' => static::lazerPlatformNames()[$platform] ?? null,
+            ]);
         }
     }
 

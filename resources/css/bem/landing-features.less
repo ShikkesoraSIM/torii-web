@@ -1,0 +1,52 @@
+// torii: lo que hace distinto a este servidor, en la portada.
+//
+// Va despues de las descargas y no antes: el que ya se decidio no tiene que
+// scrollear cuatro tarjetas para encontrar el boton, y el que todavia no,
+// llega aca justo cuando esta buscando el motivo.
+
+.landing-features {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  // Ver landing-start: .osu-page no tiene padding lateral propio.
+  padding: 30px 20px 60px;
+
+  &__title {
+    .default-text-shadow();
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+    text-align: center;
+  }
+
+  &__list {
+    display: grid;
+    // Son cuatro y el minimo esta puesto para que entren de a dos: con uno mas
+    // chico entraban tres y la cuarta quedaba sola en el renglon de abajo. El
+    // min(100%) es para que en un celular angosto el minimo no fuerce scroll
+    // horizontal.
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+    gap: 14px;
+  }
+
+  &__item {
+    background-color: @osu-colour-b5;
+    border-radius: @border-radius-large;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 20px;
+  }
+
+  &__name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  &__detail {
+    color: @osu-colour-c1;
+    font-size: 13px;
+    // Sin margen propio: el gap del contenedor ya separa.
+    margin: 0;
+  }
+}

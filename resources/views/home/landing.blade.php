@@ -100,23 +100,9 @@
                     </h2>
                 </div>
 
-                <div class="landing-hero__message-extra-container">
-                    <div class="landing-hero__message-extra landing-hero__message-extra--bottom">
-                        <a href="{{ route('download') }}" class="btn-osu-big btn-osu-big--download-landing">
-                            <span class="btn-osu-big__content">
-                                <span class="btn-osu-big__left">
-                                    <span class="btn-osu-big__text-top">
-                                        {{ osu_trans("home.landing.download") }}
-                                    </span>
-                                </span>
-
-                                <span class="btn-osu-big__icon">
-                                    <span class="fas fa-download"></span>
-                                </span>
-                            </span>
-                        </a>
-                    </div>
-                </div>
+                {{-- torii: aca iba el boton que mandaba a /download. Las
+                     descargas ahora estan en esta misma pagina, apenas mas
+                     abajo, asi que el boton era un rodeo. --}}
             </div>
 
             <div class="landing-hero__graph js-landing-graph"></div>
@@ -125,6 +111,81 @@
                 {!! json_encode($stats->graphData) !!}
             </script>
         </div>
+    </div>
+
+    {{-- torii: descargar y las diferencias del servidor, en la portada misma.
+         El que llega sin cuenta viene a decidir si vale la pena bajarlo: eso
+         se responde aca, no una pagina mas adelante. --}}
+    <div class="osu-page">
+        <section class="landing-start" id="start">
+            <div class="landing-start__header">
+                <h2 class="landing-start__title">{{ osu_trans('home.landing.start.title') }}</h2>
+                <p class="landing-start__lead">{{ osu_trans('home.landing.start.lead') }}</p>
+            </div>
+
+            @if (count($toriiStreams) > 0)
+                <div class="landing-start__list">
+                    @foreach ($toriiStreams as $stream)
+                        <div class="landing-start__item landing-start__item--{{ $stream['id'] }}">
+                            <div class="landing-start__name">{{ $stream['nombre'] }}</div>
+                            @if (present($stream['version']))
+                                <div class="landing-start__version">
+                                    {{ osu_trans('home.download.torii_streams.version', ['version' => $stream['version']]) }}
+                                </div>
+                            @endif
+                            <p class="landing-start__detail">{{ $stream['detalle'] }}</p>
+                            <div class="landing-start__actions">
+                                <a class="btn-osu-big btn-osu-big--rounded-thin" href="{{ $stream['url'] }}">
+                                    <div class="btn-osu-big__content">
+                                        <div class="btn-osu-big__left">
+                                            {{ osu_trans('home.download.download') }}
+                                        </div>
+                                        <span class="btn-osu-big__icon">
+                                            <span class="svg-icon svg-icon--download"></span>
+                                        </span>
+                                    </div>
+                                </a>
+                                @if (present($stream['notas']))
+                                    <a class="landing-start__link" href="{{ $stream['notas'] }}" rel="nofollow noreferrer">
+                                        {{ osu_trans('home.download.torii_streams.changelog') }}
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            {{-- Los archivos que ofrecen las tarjetas son los de la plataforma
+                 que detectamos. Al que entra desde otra maquina hay que dejarle
+                 la salida a la lista completa. --}}
+            <p class="landing-start__note">
+                @if (present($toriiPlatformName))
+                    <span>{{ osu_trans('home.landing.start.detected', ['platform' => $toriiPlatformName]) }}</span>
+                @endif
+                {{-- El span envuelve la frase entera a proposito: el contenedor
+                     es flex y sin el, el enlace de adentro la partiria en tres
+                     items y el gap le abriria huecos en el medio. --}}
+                <span>
+                    {!! osu_trans('home.landing.start.other_platforms', [
+                        'link' => link_to(route('download'), osu_trans('home.landing.start.other_platforms_link')),
+                    ]) !!}
+                </span>
+            </p>
+        </section>
+
+        <section class="landing-features">
+            <h2 class="landing-features__title">{{ osu_trans('home.landing.features.title') }}</h2>
+
+            <div class="landing-features__list">
+                @foreach (['pp', 'mods', 'custom', 'relax'] as $feature)
+                    <div class="landing-features__item">
+                        <div class="landing-features__name">{{ osu_trans("home.landing.features.{$feature}.title") }}</div>
+                        <p class="landing-features__detail">{{ osu_trans("home.landing.features.{$feature}.description") }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </section>
     </div>
 
     {{-- torii: sin noticias el componente no dibuja nada pero el contenedor

@@ -119,6 +119,17 @@ services:
       # X-Forwarded-*: veria http en vez de https y la ip del gateway de la
       # bridge en vez de la del usuario.
       TRUSTED_PROXIES: "172.31.0.0/24"
+      # Torii no manda correo: no hay MAIL_HOST configurado en ningun lado y el
+      # codigo de verificacion termina en el log del contenedor. Con la
+      # verificacion prendida el que se loguea cae en la pantalla de "ingresa el
+      # codigo" y no sale nunca, porque el codigo no le llega. A los
+      # privilegiados (admin, gmt, bng, nat) les salta en cada sesion, asi que la
+      # cuenta del que administra el lugar era justo la que quedaba afuera.
+      #
+      # Esto no apaga ningun control real: un codigo que solo puede leer el que
+      # ya tiene acceso al servidor no verifica nada, nomas traba. Cuando haya
+      # correo de verdad se saca esta linea y vuelve solo.
+      TORII_SKIP_SESSION_VERIFICATION: "true"
       WIKI_USER: ShikkesoraSIM
       WIKI_REPOSITORY: torii-wiki
       WIKI_BRANCH: main

@@ -9,8 +9,12 @@
 
     @if ($state->getMethod() === 'mail')
         <p class="user-verification__row user-verification__row--info">
+            {{-- torii: upstream tapa el mail con asteriscos (s***@gmail.com).
+                 Aca la pantalla ya la ve alguien que puso la contraseña bien, y
+                 lo unico que logra taparlo es que el dueño de la cuenta no sepa
+                 en cual de sus casillas buscar el codigo. --}}
             {!! osu_trans('user_verification.box.sent', [
-                'mail' => tag('strong', [], e(obscure_email($state->user->user_email))),
+                'mail' => tag('strong', [], e($state->user->user_email)),
             ]) !!}
         </p>
 

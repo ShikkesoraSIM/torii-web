@@ -1,0 +1,118 @@
+// torii: las descargas en la portada.
+//
+// Es la misma grilla de tres tarjetas que la pagina de descarga (torii-streams)
+// pero con el titulo mas grande, porque aca ES el llamado a la accion de la
+// pagina y no un bloque secundario debajo de un banner.
+
+.landing-start {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  // El padding lateral es propio: .osu-page no trae ninguno, asi que en el
+  // celular las tarjetas quedaban pegadas a los dos bordes de la pantalla.
+  padding: 60px 20px 30px;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  &__title {
+    .default-text-shadow();
+    font-size: 36px;
+    font-weight: 700;
+    margin: 0;
+    // Los titulos de dos palabras no se parten raro en pantallas angostas.
+    text-wrap: balance;
+
+    @media @mobile {
+      font-size: 26px;
+    }
+  }
+
+  &__lead {
+    color: @osu-colour-c1;
+    font-size: 15px;
+    margin: 0 auto;
+    // Un parrafo de punta a punta en un monitor ancho no se lee.
+    max-width: 66ch;
+  }
+
+  &__list {
+    display: grid;
+    // auto-fit y no tres columnas fijas: en el celular queda una sola y en el
+    // medio dos, sin media queries.
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+  }
+
+  &__item {
+    background-color: @osu-colour-b5;
+    border-radius: @border-radius-large;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 20px;
+    // Los botones quedan alineados entre las tres aunque los textos midan
+    // distinto.
+    justify-content: space-between;
+  }
+
+  // La estable es la que queremos que baje el que no sabe cual elegir.
+  &__item--torii {
+    box-shadow: inset 0 0 0 2px @osu-colour-l1;
+  }
+
+  &__name {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  &__version {
+    color: @osu-colour-c1;
+    font-size: 12px;
+    // Las versiones se comparan de un vistazo entre las tres tarjetas.
+    font-variant-numeric: tabular-nums;
+    margin-top: -6px;
+  }
+
+  &__detail {
+    color: @osu-colour-c1;
+    font-size: 13px;
+    // Sin margen propio: el gap del contenedor ya separa.
+    margin: 0;
+    // Empuja las acciones al fondo de la tarjeta.
+    flex: 1;
+  }
+
+  &__actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  &__link {
+    color: @osu-colour-c1;
+    font-size: 12px;
+
+    &:hover {
+      color: @osu-colour-c2;
+    }
+  }
+
+  &__note {
+    color: @osu-colour-c1;
+    font-size: 13px;
+    margin: 0;
+    // Flex y no dos frases sueltas: pegadas por el espacio en blanco del html
+    // quedaban a merced de como blade recorta los renglones, y ya salieron
+    // pegadas una vez. El gap separa igual y en el celular parten prolijo.
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    justify-content: center;
+  }
+}

@@ -8,14 +8,51 @@ return [
         'download' => 'Download now',
         'online' => '<strong>:players</strong> online right now',
         'plays' => '<strong>:count</strong> plays submitted',
-        'peak' => 'Peak, :count online users',
+        // torii: el grafico de la portada es plays por dia, no usuarios
+        // conectados a lo largo del dia como el de osu!. El pico decia "online
+        // users" sobre el maximo de plays, o sea un numero real con el nombre
+        // equivocado: 3.279 plays en un dia se leian como 3.279 personas.
+        'peak' => 'Busiest day, :count plays',
         'players' => '<strong>:count</strong> registered players',
         'title' => 'welcome',
         'see_more_news' => 'see more news',
 
         'slogan' => [
-            'main' => 'a private osu! server that keeps your progress',
-            'sub' => 'built by Shikkesora, running on osu!lazer',
+            'main' => 'Welcome to Torii!',
+            'sub' => 'every map, every mod, all of it counts',
+        ],
+
+        // torii: la portada del que llega sin cuenta. Upstream es un video de
+        // fondo, un eslogan y un boton que manda a /download. Aca las descargas
+        // van en la misma pagina (el que entra viene a ver si vale la pena
+        // bajarlo) y abajo va lo que hace distinto a este servidor.
+        'start' => [
+            'title' => 'Start playing on Torii!',
+            'lead' => 'pick a build, sign in with your Torii account, and your scores land here. all three share the same account, the same scores and the same pp.',
+            'other_platforms' => 'on another device? :link',
+            'other_platforms_link' => 'see every download',
+            'detected' => 'builds for :platform',
+        ],
+
+        'features' => [
+            'title' => 'What you get here',
+
+            'pp' => [
+                'title' => 'pp on (almost) every map',
+                'description' => 'loved, graveyard and pending maps award pp just like ranked ones. the only maps left out are the handful built to break the numbers, and they are on a list you can read.',
+            ],
+            'mods' => [
+                'title' => 'mods that still count',
+                'description' => 'change the rate and keep your pp. Difficulty Adjust and most of the mod list are ranked here instead of blocked, so playing around with them still goes on your profile.',
+            ],
+            'custom' => [
+                'title' => 'make it yours',
+                'description' => 'recolour the whole game to any hue you want, and earn name colours, auras and trails by playing. everyone else sees them too.',
+            ],
+            'relax' => [
+                'title' => 'relax and autopilot rank',
+                'description' => 'not a sandbox: each one has its own pp, its own leaderboards and its own tab on your profile.',
+            ],
         ],
     ],
 
