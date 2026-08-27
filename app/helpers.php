@@ -1262,10 +1262,12 @@ function nav_links()
         'page_title.main.home_controller.get_download' => route('download'),
         'page_title.main.home_controller.search' => route('search'),
     ];
+    // torii: "featured artists" son los artistas con los que osu! tiene acuerdo
+    // de licencia para usar su musica, y "beatmap packs" los packs que curan
+    // ellos. Torii no tiene ni una cosa ni la otra: las dos paginas cargan solo
+    // el nav y el footer (9 KB, cero contenido).
     $links['beatmaps'] = [
         'page_title.main.beatmapsets_controller.index' => route('beatmapsets.index'),
-        'page_title.main.artists_controller._' => route('artists.index'),
-        'page_title.main.beatmap_packs_controller._' => route('packs.index'),
     ];
     // torii: "playlists" es el ranking de seasons y las seasons no existen en
     // Torii: g0v0 no tiene la tabla y las de osu-web estan vacias, asi que
@@ -1279,12 +1281,13 @@ function nav_links()
 
         $links['rankings']["rankings.type.{$rankingType}"] = RankingController::url(['type' => $rankingType]);
     }
+    // torii: contests, tournaments y livestreams son infraestructura de osu!
+    // (sus concursos de arte y mapping, sus torneos oficiales, y la integracion
+    // con twitch). Ninguna tiene datos aca y las tres cargaban en blanco.
+    // "dev" se quedo porque ya apunta al discord de Torii, no al de ellos.
     $links['community'] = [
         'page_title.forum._' => route('forum.forums.index'),
         'page_title.main.chat_controller._' => route('chat.index'),
-        'page_title.main.contests_controller._' => route('contests.index'),
-        'page_title.main.tournaments_controller._' => route('tournaments.index'),
-        'page_title.main.livestreams_controller._' => route('livestreams.index'),
         'layout.menu.community.dev' => osu_url('dev'),
     ];
     // torii: entre community y help iba la seccion "store", que es la tienda de
@@ -1321,7 +1324,6 @@ function footer_landing_links()
         'help' => [
             'faq' => wiki_url('FAQ'),
             'forum' => route('forum.forums.index'),
-            'livestreams' => route('livestreams.index'),
             'wiki' => wiki_url('Main_page'),
         ],
         'legal' => footer_legal_links(),
