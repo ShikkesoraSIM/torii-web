@@ -11,10 +11,19 @@
     $opengraph['description'] ??= $pageDescription ?? null;
 @endphp
 {{-- torii: la tipografia del sitio. Zen Kaku Gothic New cubre los titulos
-     de beatmap japoneses, que son casi la mitad. --}}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300..800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+     de beatmap japoneses, que son casi la mitad.
+
+     Servidas desde ACA, no desde Google. Pedirlas a fonts.googleapis.com
+     costaba DNS + TCP + TLS a un host nuevo para bajar el css, y despues OTRO
+     handshake completo contra fonts.gstatic.com para el archivo: casi un
+     segundo antes de ver texto para alguien lejos del server. Y desde que el
+     cache http de los navegadores se particiona por sitio (Chrome 86+), lo de
+     "ya la tiene cacheada de otra pagina" no existe mas: cada visitante lo
+     pagaba entero. El css es el mismo de Google con las urls reescritas a
+     /fonts/gf/, asi que los unicode-range siguen igual y el navegador baja
+     solo los subsets que necesita. Para actualizarlas: volver a pedir el css
+     a Google con user-agent moderno, bajar los woff2 y reescribir las urls. --}}
+<link href="{{ $appUrl }}/fonts/gf.css" rel="stylesheet">
 <link rel="apple-touch-icon" sizes="180x180" href="{{ $appUrl }}/images/favicon/apple-touch-icon.png">
 <link rel="icon" sizes="32x32" href="{{ $appUrl }}/images/favicon/favicon-32x32.png">
 <link rel="icon" sizes="16x16" href="{{ $appUrl }}/images/favicon/favicon-16x16.png">

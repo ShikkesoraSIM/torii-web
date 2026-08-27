@@ -113,6 +113,10 @@
                         Evaluation instance of <a href="https://lazer.shikkesora.com" class="development-deploy-footer__link">Torii</a> running on real server data. Do not sign in with credentials you use anywhere else.
                     </div>
                 @endif
+
+                <div class="development-deploy-footer">
+                    this site is still growing. if something looks broken, <a href="https://discord.gg/fZXsZFT5Xv" class="development-deploy-footer__link">tell us on discord</a>.
+                </div>
             </div>
         </div>
 
