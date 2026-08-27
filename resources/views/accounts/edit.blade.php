@@ -67,6 +67,9 @@
             </div>
         </div>
 
+        @php
+            $toriiAvatarNsfw = App\Libraries\Torii\ProfileMedia::avatarIsNsfw(Auth::user());
+        @endphp
         <div class="account-edit" id="avatar">
             <div class="account-edit__section">
                 <h2 class="account-edit__section-title">
@@ -89,6 +92,37 @@
                             <div class="account-edit-entry__overlay-spinner">
                                 {!! spinner() !!}
                             </div>
+                        </div>
+
+                        {{-- torii: el aviso va ANTES del boton, que es cuando
+                             sirve leerlo. Y la casilla anda con o sin foto
+                             puesta: tildarla primero y subir despues deja la
+                             foto marcada desde el momento cero. --}}
+                        <div class="account-edit-entry__rules">
+                            {{ osu_trans('accounts.edit.avatar.nsfw_notice') }}
+                        </div>
+
+                        <div
+                            class="js-account-edit js-account-edit-auto-submit"
+                            data-url="{{ route('account.avatar-nsfw') }}"
+                            data-user-preferences-update="1"
+                            style="margin: 10px 0 15px;"
+                        >
+                            <label class="account-edit-entry__checkbox">
+                                @include('objects._switch', ['locals' => [
+                                    'additionalClass' => 'js-account-edit__input',
+                                    'checked' => $toriiAvatarNsfw,
+                                    'name' => 'avatar_nsfw',
+                                ]])
+
+                                <span class="account-edit-entry__checkbox-label">
+                                    {{ osu_trans('accounts.edit.avatar.nsfw_label') }}
+                                </span>
+
+                                <div class="account-edit-entry__checkbox-status">
+                                    @include('accounts._edit_entry_status', ['modifiers' => ['left']])
+                                </div>
+                            </label>
                         </div>
 
                         <p>
@@ -144,14 +178,6 @@
                             </button>
                         </p>
 
-                        <div class="account-edit-entry__rules">
-                            {!! osu_trans('accounts.edit.avatar.rules', [
-                                'link' => link_to(
-                                    wiki_url('Rules/Visual_content_considerations'),
-                                    osu_trans('accounts.edit.avatar.rules_link')
-                                )
-                            ]) !!}
-                        </div>
                     </div>
                 </div>
             </div>

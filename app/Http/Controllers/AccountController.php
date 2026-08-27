@@ -8,6 +8,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ModelNotSavedException;
 use App\Libraries\Session\Store as SessionStore;
 use App\Libraries\SessionVerification;
+use App\Libraries\Torii\ProfileMedia;
 use App\Libraries\User\AvatarHelper;
 use App\Libraries\User\CountryChange;
 use App\Libraries\User\CountryChangeTarget;
@@ -80,6 +81,18 @@ class AccountController extends Controller
         $user = auth()->user();
 
         AvatarHelper::set($user, Request::file('avatar_file'));
+
+        return json_item($user, new CurrentUserTransformer());
+    }
+
+    // torii: la casilla de "mi foto es subida de tono". El cliente solo puede
+    // decidirlo al subir, asi que ahi una foto mal etiquetada solo se arregla
+    // subiendola de nuevo; desde el sitio se corrige con un tilde.
+    public function toriiAvatarNsfw()
+    {
+        $user = auth()->user();
+
+        ProfileMedia::setAvatarNsfw($user, get_bool(Request::input('avatar_nsfw')) ?? false);
 
         return json_item($user, new CurrentUserTransformer());
     }

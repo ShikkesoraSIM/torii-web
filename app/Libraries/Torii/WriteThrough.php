@@ -98,13 +98,11 @@ class WriteThrough
                     'user_passchg', 'user_posts',
                 ],
                 'reject' => [
-                    // Los avatares los sirve la api de Torii desde su propio
-                    // storage, que no es el de osu-web y no se escribe desde
-                    // aca. Subir el archivo a public/uploads y escribir la url
-                    // seria peor que no hacer nada: nginx proxea ese path a la
-                    // api, asi que el archivo local no se llega a servir nunca
-                    // y el juego se queda mirando un 404.
-                    'user_avatar' => 'Avatars are stored by the game server and can not be uploaded from the website.',
+                    // 'user_avatar' ya no se rechaza: subir una foto ahora se
+                    // resuelve contra la api del juego (Torii\ProfileMedia) y
+                    // AvatarHelper ni siquiera toca la columna, asi que por aca
+                    // no pasa nada que bloquear. La vista la deriva sola de
+                    // lazer_users.avatar_url.
                     // No hay columna en lazer_users para esto. Ver el detalle
                     // en el comentario de abajo de la clase.
                     'user_allow_viewonline' => 'Hiding your online presence is not supported on Torii.',

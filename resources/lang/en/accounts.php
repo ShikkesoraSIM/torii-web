@@ -11,8 +11,11 @@ return [
         'avatar' => [
             'title' => 'Avatar',
             'reset' => 'reset',
-            'rules' => 'Please ensure your avatar adheres to :link.<br/>This means it must be <strong>suitable for all ages</strong>. i.e. no nudity, offensive or suggestive content.',
-            'rules_link' => 'the Visual content considerations',
+            // torii: la regla de osu! decia que el avatar tiene que ser apto
+            // para todo publico. Aca no es asi, y dejar ese texto era peor que
+            // no decir nada: contradecia lo que el juego permite.
+            'nsfw_notice' => 'Suggestive avatars are allowed if you flag them. Tick the box and anyone who has not opted in sees a default picture instead. You have to be 18 or over, and uploading a suggestive picture without flagging it can get you warned.',
+            'nsfw_label' => 'My avatar is suggestive or NSFW',
         ],
 
         'email' => [

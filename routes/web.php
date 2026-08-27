@@ -230,6 +230,10 @@ Route::group(['middleware' => ['web']], function () {
             // Reference: https://bugs.php.net/bug.php?id=55815
             // Note that hhvm behaves differently (the same as POST).
             Route::post('avatar', 'AccountController@avatar')->name('avatar');
+            // torii: marcar la foto que YA esta puesta, sin volver a subirla.
+            // PUT porque es lo que manda el js de las casillas que se guardan
+            // solas (account-edit-state.ts), no por gusto.
+            Route::put('avatar-nsfw', 'AccountController@toriiAvatarNsfw')->name('avatar-nsfw');
             Route::put('country', 'AccountController@updateCountry')->name('country');
             Route::post('cover', 'AccountController@cover')->name('cover');
             Route::put('email', 'AccountController@updateEmail')->name('email');

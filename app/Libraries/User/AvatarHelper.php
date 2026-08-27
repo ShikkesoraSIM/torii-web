@@ -9,6 +9,7 @@ namespace App\Libraries\User;
 
 use App\Libraries\ImageProcessor;
 use App\Libraries\StorageUrl;
+use App\Libraries\Torii\ProfileMedia;
 use App\Models\User;
 
 class AvatarHelper
@@ -17,6 +18,20 @@ class AvatarHelper
 
     public static function set(User $user, ?\SplFileInfo $src): bool
     {
+        // torii: las fotos las guarda la api del juego, no el sitio. Guardarlas
+        // aca no serviria de nada: nginx proxea /uploads/avatar a la api, asi
+        // que el archivo local no se llega a servir nunca y el juego se queda
+        // mirando un 404. Ver el comentario largo en Torii\ProfileMedia.
+        if (ProfileMedia::enabled()) {
+            if ($src === null) {
+                ProfileMedia::deleteAvatar($user);
+            } else {
+                ProfileMedia::setAvatar($user, $src);
+            }
+
+            return true;
+        }
+
         $id = $user->getKey();
         $storage = storage_disk(static::DISK);
 
