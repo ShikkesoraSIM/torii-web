@@ -35,6 +35,10 @@ class ProfileMedia
     private const AVATAR_DIM = [256, 256];
     private const AVATAR_FILESIZE = 100000;
 
+    // Mismos numeros que usa osu-web para las portadas.
+    private const COVER_DIM = [2000, 500];
+    private const COVER_FILESIZE = 800000;
+
     private const TIMEOUT = 15;
 
     public static function enabled(): bool
@@ -131,6 +135,46 @@ class ProfileMedia
             'user_id' => $user->getKey(),
             'is_nsfw' => $isNsfw ? 'true' : 'false',
         ]));
+
+        $user->refresh();
+    }
+
+    public static function setCover(User $user, \SplFileInfo $src): void
+    {
+        static::assertEnabled();
+
+        $path = $src->getRealPath();
+        if ($path === false) {
+            throw new ImageProcessorException(osu_trans('users.show.edit.cover.upload.broken_file'));
+        }
+
+        // La portada se achica igual que el avatar, con los numeros de portada.
+        // Del otro lado el limite es 3000x2000 y tampoco achica: rechaza.
+        (new ImageProcessor($path, static::COVER_DIM, static::COVER_FILESIZE))->process();
+
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            throw new ImageProcessorException(osu_trans('users.show.edit.cover.upload.broken_file'));
+        }
+
+        static::handle(
+            static::request()
+                ->attach('content', $contents, 'cover.png')
+                ->post(static::apiUrl().'/api/private/web/cover/upload', [
+                    'user_id' => $user->getKey(),
+                ])
+        );
+
+        $user->refresh();
+    }
+
+    public static function deleteCover(User $user): void
+    {
+        static::assertEnabled();
+
+        static::handle(static::request()->delete(
+            static::apiUrl().'/api/private/web/cover?user_id='.$user->getKey()
+        ));
 
         $user->refresh();
     }

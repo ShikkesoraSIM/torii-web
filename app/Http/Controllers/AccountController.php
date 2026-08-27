@@ -105,8 +105,25 @@ class AccountController extends Controller
             'cover_id:int',
         ], ['null_missing' => true]);
 
-        if ($params['cover_file'] !== null && !$user->osu_subscriber) {
-            return error_popup(osu_trans('errors.supporter_only'));
+        // torii: no hay tag de supporter que comprar, asi que cambiar la
+        // portada no se le cobra a nadie. El candado de arriba era el upsell de
+        // osu!.
+        //
+        // Y va por la api del juego por lo mismo que el avatar: guardarla local
+        // no serviria de nada porque nginx proxea /uploads/default/user-profile-
+        // covers a la api, asi que el archivo de aca no se sirve nunca. Ver el
+        // comentario largo en Torii\ProfileMedia.
+        if (ProfileMedia::enabled()) {
+            if ($params['cover_file'] !== null) {
+                ProfileMedia::setCover($user, $params['cover_file']);
+            } else {
+                // Elegir un preset en Torii significa "sacate la propia": la
+                // vista le asigna el unico preset que hay a quien no tiene
+                // portada subida, asi que no hay entre cual elegir.
+                ProfileMedia::deleteCover($user);
+            }
+
+            return json_item($user, new CurrentUserTransformer());
         }
 
         $user->cover()->set($params['cover_id'], $params['cover_file']);
