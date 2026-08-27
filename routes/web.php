@@ -378,29 +378,33 @@ Route::group(['middleware' => ['web']], function () {
     Route::get('wiki/{locale?}/{path?}', 'WikiController@show')->name('wiki.show')->where('path', '.+');
     Route::put('wiki/{locale}/{path}', 'WikiController@update')->where('path', '.+');
 
-    // FIXME: someone split this crap up into proper controllers
+    // torii: la tienda de osu! quedaba accesible entrando a mano aunque no se
+    // linkeara: /store/listing mostraba "Xsolla is an authorised global
+    // distributor of osu!" y vendia "osu! Supporter Tag" y cambios de nombre
+    // pagos. Torii no tiene tienda ni cobra por nada.
+    //
+    // Las rutas no se borran, se neutralizan: medio codebase las llama por
+    // nombre con route() (HomeController, Models\Store\Product,
+    // Models\Tournament, y varios .tsx del bundle compilado), y un route() a
+    // un nombre que no existe tira excepcion. Se conservan todos los nombres
+    // apuntando a la portada, asi nada revienta y no hay nada que ver.
     Route::group(['as' => 'store.', 'prefix' => 'store'], function () {
-        route_redirect('/', 'store.products.index');
+        $toHome = fn () => redirect(route('home'));
 
-        Route::get('listing', 'StoreController@getListing')->name('products.index');
-        Route::get('invoice/{invoice}', 'StoreController@getInvoice')->name('invoice.show');
-
-        Route::group(['namespace' => 'Store'], function () {
-            Route::post('products/{product}/notification-request', 'NotificationRequestsController@store')->name('notification-request');
-            Route::delete('products/{product}/notification-request', 'NotificationRequestsController@destroy');
-
-            // Store splitting starts here
-            Route::get('cart', 'CartController@show')->name('cart.show');
-            Route::delete('cart', 'CartController@empty')->name('cart.empty');
-            Route::resource('cart', 'CartController', ['only' => ['store']]);
-
-            Route::resource('checkout', 'CheckoutController', ['only' => ['show', 'store']]);
-
-            Route::resource('orders', 'OrdersController', ['only' => ['destroy', 'index']]);
-
-            route_redirect('product/{product}', 'store.products.show');
-            Route::resource('products', 'ProductsController', ['only' => ['show']]);
-        });
+        Route::get('/', $toHome);
+        Route::get('listing', $toHome)->name('products.index');
+        Route::get('invoice/{invoice}', $toHome)->name('invoice.show');
+        Route::get('product/{product}', $toHome);
+        Route::get('products/{product}', $toHome)->name('products.show');
+        Route::get('cart', $toHome)->name('cart.show');
+        Route::delete('cart', $toHome)->name('cart.empty');
+        Route::post('cart', $toHome)->name('cart.store');
+        Route::get('checkout/{checkout}', $toHome)->name('checkout.show');
+        Route::post('checkout', $toHome)->name('checkout.store');
+        Route::get('orders', $toHome)->name('orders.index');
+        Route::delete('orders/{order}', $toHome)->name('orders.destroy');
+        Route::post('products/{product}/notification-request', $toHome)->name('notification-request');
+        Route::delete('products/{product}/notification-request', $toHome);
     });
 
     Route::group(['as' => 'payments.', 'prefix' => 'payments', 'namespace' => 'Payments'], function () {
