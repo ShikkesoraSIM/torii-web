@@ -32,4 +32,11 @@ return [
     // Vacio => el sitio se comporta como antes y dice que no se puede subir.
     'api_url' => rtrim(env('TORII_API_URL', ''), '/'),
     'web_token' => env('TORII_WEB_TOKEN', ''),
+
+    // El panel de moderacion, que vive en el otro frontend. No se porteo a
+    // propósito: son mas de veinte pantallas que ya funcionan, y tenerlas dos
+    // veces significa arreglar cada cosa dos veces para siempre.
+    //
+    // Vacio => el link no se muestra.
+    'admin_url' => rtrim(env('TORII_ADMIN_URL', ''), '/'),
 ];

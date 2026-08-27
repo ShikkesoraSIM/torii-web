@@ -54,6 +54,18 @@
         {{ osu_trans('layout.popup_user.links.account-edit') }}
     </a>
 
+    {{-- torii: el panel de moderacion vive en el otro frontend. Se linkea en vez
+         de portarlo: son mas de veinte pantallas que ya funcionan, y tenerlas
+         dos veces significa arreglar cada cosa dos veces para siempre.
+
+         Abre en la misma pestania a proposito: alla la sesion se resuelve sola
+         y si no hay, el login te devuelve al panel cuando entras. --}}
+    @if ($currentUser->isAdmin() && $GLOBALS['cfg']['torii']['admin_url'] !== '')
+        <a class="simple-menu__item" href="{{ $GLOBALS['cfg']['torii']['admin_url'] }}">
+            {{ osu_trans('layout.popup_user.links.torii-admin') }}
+        </a>
+    @endif
+
     <button
         class="js-logout-link simple-menu__item"
         type="button"

@@ -196,6 +196,7 @@ return [
     'popup_user' => [
         'links' => [
             'account-edit' => 'Settings',
+            'torii-admin' => 'Moderation panel',
             'create_team' => 'Create Team',
             'follows' => 'Watchlists',
             'friends' => 'Friends',
