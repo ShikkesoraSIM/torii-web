@@ -129,13 +129,9 @@ class AccountController extends Controller
         $authorizedClients = json_collection(Client::forUser($user), new ClientTransformer(), 'user');
         $ownClients = json_collection($user->oauthClients()->where('revoked', false)->get(), new ClientTransformer(), ['redirect', 'secret']);
 
-        $legacyApiKey = $user->apiKeys()->available()->first();
-        $legacyApiKeyJson = $legacyApiKey === null ? null : json_item($legacyApiKey, new LegacyApiKeyTransformer());
-
-        $legacyIrcKey = $user->legacyIrcKey;
-        $legacyIrcKeyJson = $legacyIrcKey === null ? null : json_item($legacyIrcKey, new LegacyIrcKeyTransformer());
-
-        $notificationOptions = $user->notificationOptions->keyBy('name');
+        // torii: ya no se consultan la key de api legacy, la de irc ni las
+        // opciones de notificacion. Sus secciones se sacaron de la pagina, asi
+        // que eran tres consultas por carga para dibujar nada.
 
         $githubUser = GithubUser::canAuthenticate() && $user->githubUser !== null
             ? json_item($user->githubUser, new GithubUserTransformer())
@@ -146,9 +142,6 @@ class AccountController extends Controller
             'blocks',
             'currentSessionId',
             'githubUser',
-            'legacyApiKeyJson',
-            'legacyIrcKeyJson',
-            'notificationOptions',
             'ownClients',
             'sessions'
         ));

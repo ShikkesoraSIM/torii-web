@@ -32,29 +32,9 @@
                 </label>
             </div>
 
-            <div
-                class="account-edit-entry account-edit-entry--no-label js-account-edit js-account-edit-auto-submit"
-                data-url="{{ route('account.options') }}"
-            >
-                <label class="account-edit-entry__checkbox">
-                    @include('objects._switch', ['locals' => [
-                        'additionalClass' => 'js-account-edit__input',
-                        'checked' => auth()->user()->hide_presence,
-                        'name' => 'user[hide_presence]',
-                    ]])
-
-                    <span class="account-edit-entry__checkbox-label">
-                        {{ osu_trans('accounts.privacy.hide_online') }}
-                        <span class="account-edit-entry__checkbox-label-info">
-                            {{ osu_trans('accounts.privacy.hide_online_info') }}
-                        </span>
-                    </span>
-
-                    <div class="account-edit-entry__checkbox-status">
-                        @include('accounts._edit_entry_status', ['modifiers' => ['left']])
-                    </div>
-                </label>
-            </div>
+            {{-- torii: "esconder tu presencia" no esta. No hay columna en
+                 lazer_users para eso, asi que la capa de escritura lo rechaza:
+                 el interruptor se movia, tiraba error y volvia solo. --}}
         </div>
         @if (count($blocks) > 0)
             <div class="account-edit__input-group">
