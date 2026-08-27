@@ -14,8 +14,8 @@ return [
             // torii: la regla de osu! decia que el avatar tiene que ser apto
             // para todo publico. Aca no es asi, y dejar ese texto era peor que
             // no decir nada: contradecia lo que el juego permite.
-            'nsfw_notice' => 'Suggestive avatars are allowed if you flag them. Tick the box and anyone who has not opted in sees a default picture instead. You have to be 18 or over, and uploading a suggestive picture without flagging it can get you warned.',
-            'nsfw_label' => 'My avatar is suggestive or NSFW',
+            'nsfw_notice' => 'NSFW avatars are allowed only if you flag them. Players need to have +18 mode enabled to see your picture. You have to be 18 years old or over to use this feature.',
+            'nsfw_label' => 'My avatar is NSFW',
         ],
 
         'email' => [

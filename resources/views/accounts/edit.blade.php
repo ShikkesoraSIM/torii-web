@@ -98,7 +98,7 @@
                              sirve leerlo. Y la casilla anda con o sin foto
                              puesta: tildarla primero y subir despues deja la
                              foto marcada desde el momento cero. --}}
-                        <div class="account-edit-entry__rules">
+                        <div class="account-edit-entry__rules" style="max-width: 62ch;">
                             {{ osu_trans('accounts.edit.avatar.nsfw_notice') }}
                         </div>
 
