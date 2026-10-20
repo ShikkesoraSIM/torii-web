@@ -235,6 +235,9 @@ return [
         // autenticacion del jugador. Decia osu!dev.
         'issuer_name' => env('TOTP_ISSUER_NAME', 'Torii'),
     ],
+    'frontend_choice' => [
+        'classic_url' => presence(env('TORII_CLASSIC_FRONTEND_URL')) ?? 'https://lazer.shikkesora.com',
+    ],
     'twitch_client_id' => presence(env('TWITCH_CLIENT_ID')),
     'twitch_client_secret' => presence(env('TWITCH_CLIENT_SECRET')),
     'urls' => [

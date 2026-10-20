@@ -1,0 +1,95 @@
+.torii-frontend-choice-link {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 999;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid hsla(var(--hsl-c1), .28);
+  border-radius: 50%;
+  color: hsl(var(--hsl-c1));
+  background: hsla(var(--hsl-b6), .94);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+  text-decoration: none;
+  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: hsla(var(--hsl-c1), .6);
+    color: hsl(var(--hsl-c1));
+    background: hsl(var(--hsl-b5));
+    outline: none;
+    transform: translateY(-1px) scale(1.035);
+  }
+
+  &:focus-visible {
+    outline: 2px solid hsl(var(--hsl-c1));
+    outline-offset: 4px;
+  }
+
+  > .fas {
+    font-size: 24px;
+  }
+
+  &__label {
+    position: absolute;
+    right: calc(100% + 10px);
+    width: max-content;
+    max-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 7px 10px;
+    border: 1px solid hsla(var(--hsl-c1), .18);
+    border-radius: 5px;
+    color: hsl(var(--hsl-c1));
+    background: hsl(var(--hsl-b6));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(5px);
+    transition: opacity 140ms ease, transform 140ms ease;
+
+    > span {
+      opacity: .75;
+      font-size: 11px;
+      font-weight: 400;
+    }
+  }
+
+  &:hover &__label,
+  &:focus-visible &__label {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  @media @mobile {
+    right: 14px;
+    bottom: 14px;
+    width: 52px;
+    height: 52px;
+
+    &__label {
+      right: 0;
+      bottom: calc(100% + 10px);
+      transform: translateY(5px);
+    }
+
+    &:hover &__label,
+    &:focus-visible &__label {
+      transform: translateY(0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .torii-frontend-choice-link,
+  .torii-frontend-choice-link__label {
+    transition: none;
+    transform: none;
+  }
+}

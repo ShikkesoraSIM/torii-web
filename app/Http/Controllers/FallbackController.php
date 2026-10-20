@@ -26,6 +26,14 @@ class FallbackController extends Controller
             return error_popup(osu_trans('errors.missing_route'), 404);
         }
 
+        if (request()->isMethod('GET') && request()->cookie('torii_frontend') === 'torii-web') {
+            $uri = request()->getRequestUri();
+            $separator = str_contains($uri, '?') ? '&' : '?';
+            $classicUrl = rtrim(config('osu.frontend_choice.classic_url'), '/');
+
+            return redirect()->away("{$classicUrl}{$uri}{$separator}frontend-fallback=1");
+        }
+
         return ext_view('layout.error', ['statusCode' => 404], 'html', 404);
     }
 }

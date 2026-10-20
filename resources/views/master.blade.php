@@ -124,6 +124,21 @@
             <div class="js-audio--main"></div>
             <div class="js-sync-height--target" data-sync-height-id="permanent-fixed-footer"></div>
         </div>
+
+        <a
+            class="torii-frontend-choice-link"
+            href="{{ rtrim(config('osu.frontend_choice.classic_url'), '/').'/frontend-choice?'.http_build_query(['from' => 'torii-web', 'return' => request()->getRequestUri()]) }}"
+            data-turbo="false"
+            aria-label="Change frontend"
+            aria-describedby="frontend-switch-tooltip"
+        >
+            <span class="fas fa-columns" aria-hidden="true"></span>
+            <span id="frontend-switch-tooltip" class="torii-frontend-choice-link__label" role="tooltip">
+                <strong>Change frontend</strong>
+                <span>Pick Torii or Torii Web again.</span>
+            </span>
+        </a>
+
         {{--
             Components:
             - lib/utils/estimate-min-lines.ts (main)

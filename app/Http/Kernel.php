@@ -38,6 +38,7 @@ class Kernel extends HttpKernel
             Middleware\UpdateUserInfo::class,
             Middleware\VerifyUserAlways::class,
             Middleware\CheckUserBanStatus::class,
+            Middleware\RedirectToFrontendChoice::class,
         ],
         'lio' => [
             Middleware\LegacyInterOpAuth::class,

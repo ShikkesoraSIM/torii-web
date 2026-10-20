@@ -12,5 +12,6 @@ class EncryptCookies extends EncryptCookiesBase
     protected $except = [
         'XSRF-TOKEN',
         'locale',
+        'torii_frontend',
     ];
 }
