@@ -5,6 +5,23 @@
 
 return [
     'landing' => [
+        'hero' => [
+            'welcome' => 'bienvenido a',
+            'download' => 'Descargar Torii',
+            'beatmaps' => 'Buscar mapas',
+            'detail' => 'PP en mapas unranked. Rates, mapas de la comunidad y casi todos los mods ranked.',
+        ],
+
+        'activity' => [
+            'period' => 'ultimos 10 dias',
+            'scores' => 'scores/dia',
+            'online' => 'pico online/dia',
+            'unavailable' => 'todavia no hay historial de jugadores online',
+            'peak' => 'Dia mas activo: :count scores (:date)',
+            'label' => 'Actividad del servidor en los ultimos 10 dias',
+            'scales' => 'Scores en la escala izquierda; jugadores online en la derecha.',
+        ],
+
         'download' => 'Descargar ahora',
         'online' => '<strong>:players</strong> actualmente en línea en <strong>:games</strong> partidas',
         'peak' => 'Pico, :count usuarios en línea',
@@ -14,7 +31,7 @@ return [
 
         'slogan' => [
             'main' => 'el mejor juego de ritmo gratis',
-            'sub' => 'el ritmo está a un solo clic de distancia',
+            'sub' => 'Entrena en las montanas, sin limites.',
         ],
     ],
 

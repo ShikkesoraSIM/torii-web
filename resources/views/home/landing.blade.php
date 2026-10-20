@@ -21,6 +21,9 @@
         <!-- Desktop Navigation -->
         <div class="landing-nav hidden-xs">
             <div class="landing-nav__section">
+                <a class="landing-nav__brand" href="{{ route('home') }}" aria-label="Torii">
+                    <img src="/images/layout/osu-logo-white.svg" alt="" width="32" height="32">
+                </a>
                 @foreach ($navLinks as $section => $links)
                     <a
                         href="{{ array_first($links) }}"
@@ -50,66 +53,75 @@
     @include('layout._popup_login', ['modifiers' => ['landing']])
 
     <div class="osu-page">
-        <div class="landing-hero">
-            <div class="landing-hero__bg-container">
-                {{--
-                    playsinline is for iphone autoplay
-                    reference: https://webkit.org/blog/6784/new-video-policies-for-ios/
-                --}}
-                {{-- torii: aca iba un video de osu! alojado en assets.ppy.sh.
-                     No es nuestro y ademas daba una caja negra vacia. El fondo
-                     lo pone landing-hero__bg-container por css. --}}
+        <section class="landing-hero" aria-labelledby="landing-title">
+            <div class="landing-hero__bg-container" aria-hidden="true">
+                <img
+                    class="landing-hero__bg"
+                    src="/images/landing/torii-lake.webp"
+                    alt=""
+                    width="1920"
+                    height="800"
+                    fetchpriority="high"
+                >
                 @if (present($GLOBALS['cfg']['osu']['landing']['video_url']))
                     <video
-                        class="landing-hero__bg"
+                        class="landing-hero__bg landing-hero__bg--video"
                         autoplay
                         loop
                         muted
                         playsinline
+                        preload="none"
                         src="{{ $GLOBALS['cfg']['osu']['landing']['video_url'] }}"
                     ></video>
                 @endif
             </div>
 
-            {{-- torii: aca iba Pippi, la mascota de osu!. El logo grande de la
-                 marca ya se dibuja mas abajo en landing-hero__logo. --}}
-
-            <div class="landing-hero__info">
-                {{-- torii: numeros reales del servidor. El de partidas en
-                     curso no existe aca y se cambio por las plays, que es lo
-                     que de verdad dice si el lugar esta vivo. --}}
-                {!! osu_trans("home.landing.players", ['count' => i18n_number_format($stats->totalUsers)]) !!},
-                {!! osu_trans("home.landing.online", ['players' => i18n_number_format($stats->currentOnline)]) !!},
-                {!! osu_trans("home.landing.plays", ['count' => i18n_number_format($stats->totalPlays)]) !!}
-            </div>
-
             <div class="landing-hero__messages">
-                <div class="landing-hero__message-extra-container">
-                    <div class="landing-hero__message-extra landing-hero__message-extra--top">
-                        <div class="landing-hero__logo"></div>
-                    </div>
+                <p class="landing-hero__welcome">{{ osu_trans('home.landing.hero.welcome') }}</p>
+                <h1 class="landing-hero__title" id="landing-title">Torii</h1>
+                <p class="landing-hero__slogan">{{ osu_trans('home.landing.slogan.sub') }}</p>
+                <p class="landing-hero__detail">{{ osu_trans('home.landing.hero.detail') }}</p>
+
+                <div class="landing-hero__actions">
+                    <a class="landing-hero__button" href="#start">
+                        <span class="fas fa-download" aria-hidden="true"></span>
+                        {{ osu_trans('home.landing.hero.download') }}
+                    </a>
+                    <a class="landing-hero__button landing-hero__button--secondary" href="{{ route('beatmapsets.index') }}">
+                        <span class="fas fa-search" aria-hidden="true"></span>
+                        {{ osu_trans('home.landing.hero.beatmaps') }}
+                    </a>
                 </div>
-
-                <div class="landing-hero__slogan">
-                    <h1 class="landing-hero__slogan-main">
-                        {{ osu_trans('home.landing.slogan.main') }}
-                    </h1>
-
-                    <h2 class="landing-hero__slogan-sub">
-                        {{ osu_trans('home.landing.slogan.sub') }}
-                    </h2>
-                </div>
-
-                {{-- torii: aca iba el boton que mandaba a /download. Las
-                     descargas ahora estan en esta misma pagina, apenas mas
-                     abajo, asi que el boton era un rodeo. --}}
             </div>
 
-            <div class="landing-hero__graph js-landing-graph"></div>
+            <div
+                class="landing-hero__graph js-landing-graph"
+                data-labels="{{ json_encode([
+                    'period' => osu_trans('home.landing.activity.period'),
+                    'scores' => osu_trans('home.landing.activity.scores'),
+                    'online' => osu_trans('home.landing.activity.online'),
+                    'unavailable' => osu_trans('home.landing.activity.unavailable'),
+                    'peak' => osu_trans('home.landing.activity.peak'),
+                    'label' => osu_trans('home.landing.activity.label'),
+                    'scales' => osu_trans('home.landing.activity.scales'),
+                ]) }}"
+            ></div>
 
             <script id="json-stats" type="application/json">
                 {!! json_encode($stats->graphData) !!}
             </script>
+        </section>
+
+        <div class="landing-hero__stats">
+            <div class="landing-hero__stat">
+                {!! osu_trans('home.landing.players', ['count' => i18n_number_format($stats->totalUsers)]) !!}
+            </div>
+            <div class="landing-hero__stat landing-hero__stat--online">
+                {!! osu_trans('home.landing.online', ['players' => i18n_number_format($stats->currentOnline)]) !!}
+            </div>
+            <div class="landing-hero__stat">
+                {!! osu_trans('home.landing.plays', ['count' => i18n_number_format($stats->totalPlays)]) !!}
+            </div>
         </div>
     </div>
 

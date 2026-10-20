@@ -2,23 +2,136 @@
 // See the LICENCE file in the repository root for full licence text.
 
 .landing-graph {
-  width: 100%;
-  height: 100%;
+  color: #e4eeec;
+  font-size: 11px;
+
+  &__heading,
+  &__legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+
+  &__heading {
+    justify-content: space-between;
+    margin-bottom: 5px;
+  }
+
+  &__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    &::before {
+      content: "";
+      width: 16px;
+      height: 2px;
+      background: currentColor;
+    }
+
+    &--scores {
+      color: #f4a4b3;
+    }
+
+    &--online {
+      color: #a2e6cd;
+    }
+
+    &--unavailable {
+      color: #b9c8c7;
+
+      &::before {
+        background: none;
+        border-top: 2px dashed currentColor;
+      }
+    }
+  }
+
+  &__summary {
+    min-height: 16px;
+    margin: 0 0 4px;
+    color: #d1dfdd;
+    line-height: 1.4;
+  }
+
+  &__plot {
+    display: block;
+    width: 100%;
+    height: 82px;
+    touch-action: pan-y;
+
+    &:focus-visible {
+      outline: 1px solid #e4eeec;
+      outline-offset: 3px;
+      border-radius: 3px;
+    }
+  }
 
   &__area {
-    fill: @pink-darker;
+    &--scores {
+      fill: rgba(244, 164, 179, 0.18);
+    }
+
+    &--online {
+      fill: rgba(162, 230, 205, 0.12);
+    }
   }
 
-  &__circle {
+  &__line {
     fill: none;
-    stroke-width: 2;
-    stroke: #fff;
+    stroke-width: 1.5px;
+
+    &--scores {
+      stroke: #f4a4b3;
+    }
+
+    &--online {
+      stroke: #a2e6cd;
+    }
   }
 
-  &__text {
-    .default-text-shadow();
+  &__axis,
+  &__date {
+    fill: #bacfcb;
     font-size: 10px;
+  }
+
+  &__axis--scores {
+    fill: #f4a4b3;
+  }
+
+  &__axis--online {
+    fill: #a2e6cd;
+  }
+
+  &__baseline {
+    stroke: rgba(255, 255, 255, 0.18);
+  }
+
+  &__peak {
     fill: #fff;
+    stroke: #f4a4b3;
+    stroke-width: 1px;
+  }
+
+  &__cursor {
+    stroke: rgba(255, 255, 255, 0.65);
+    stroke-dasharray: 3 3;
     pointer-events: none;
+  }
+
+  @media @mobile {
+    &__heading {
+      gap: 6px;
+    }
+
+    &__legend {
+      gap: 10px;
+    }
+
+    &__summary {
+      min-height: 30px;
+    }
   }
 }

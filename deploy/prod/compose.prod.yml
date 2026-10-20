@@ -86,6 +86,23 @@ services:
       DB_PASSWORD: "${DB_PASSWORD}"
       TORII_SOURCE_SCHEMA: osu_api
 
+  # activar despues de crear torii_online_daily, con --profile online-history.
+  torii-online-sampler:
+    extends:
+      file: compose.yaml
+      service: php
+    profiles: ["online-history"]
+    command: ["php", "artisan", "torii:sample-online", "--watch"]
+    networks: [default, g0v0]
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.25"
+    environment:
+      DB_HOST: osu_api_mysql
+      DB_USERNAME: toriiweb
+      DB_PASSWORD: "${DB_PASSWORD}"
+      TORII_SOURCE_SCHEMA: osu_api
+
   # Los de dusk tambien: php-dusk corre con APP_ENV=dusk.local y expone
   # /_dusk/login/{id}, que loguea como cualquier usuario sin contrasena.
   php-dusk:

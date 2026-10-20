@@ -20,6 +20,21 @@
 
   &--body-landing {
     background-color: @osu-colour-b6;
+
+    // en la portada queda al pie, sin tapar las descargas.
+    .fixed-bar {
+      position: static;
+      z-index: auto;
+    }
+
+    .development-deploy-footer:last-child {
+      padding: 18px 70px;
+      background: @osu-colour-b6;
+      color: @osu-colour-c1;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
     // inspired by
     // https://fourword.fourkitchens.com/article/fix-scrolling-performance-css-will-change-property
     // using backface-visibility since IE doesn't have will-change property yet.

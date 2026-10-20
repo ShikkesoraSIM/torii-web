@@ -12,11 +12,10 @@
 //   jugadores    osu_counts, que refresca torii-cache.sql
 //   en linea     la bandera is_online de la fila del usuario, que mantiene g0v0
 //   plays        cuantos scores hay
-//   grafico      plays por dia de los ultimos dos meses
+//   grafico      scores por dia de los ultimos diez dias
 //
-// El grafico no es el mismo dato que el de osu! (alla son usuarios conectados a
-// lo largo del dia) pero es el que Torii puede sostener sin inventar nada, y
-// dice algo mas util: si el servidor se esta jugando o no.
+// El historial online guarda picos diarios. Arranca con diez dias estimados,
+// marcados aparte, que las mediciones van reemplazando. No toca los contadores.
 //
 // Cache de cinco minutos con mutex: sin el, cada vez que vence el cache TODOS
 // los que entran a la portada al mismo tiempo pagan el barrido de scores.
@@ -32,9 +31,9 @@ use Illuminate\Support\Facades\DB;
 
 class ServerStats
 {
-    const CACHE_KEY = 'torii_server_stats';
+    const CACHE_KEY = 'torii_server_stats:activity:v3';
     const CACHE_SECONDS = 300;
-    const GRAPH_DAYS = 60;
+    const GRAPH_DAYS = 10;
 
     public int $currentOnline;
     public int $totalPlays;
@@ -78,15 +77,15 @@ class ServerStats
         return QueryHints::isView('scores') ? "{$schema}.scores" : 'scores';
     }
 
-    /**
-     * Plays por dia de los ultimos dos meses, en el formato que espera
-     * landing-user-stats.ts: una lista de {x, y} con x el indice del dia.
-     */
     private static function playsPerDay(): array
     {
+        $today = now('UTC')->startOfDay();
+        $start = $today->copy()->subDays(static::GRAPH_DAYS - 1);
+        $online = OnlineActivity::dailyPeaks($start, $today);
         $rows = DB::table(static::scoresTable())
             ->selectRaw('DATE(ended_at) AS day, COUNT(*) AS plays')
-            ->where('ended_at', '>', now()->subDays(static::GRAPH_DAYS))
+            ->where('ended_at', '>=', $start)
+            ->where('ended_at', '<', $today->copy()->addDay())
             ->groupBy('day')
             ->pluck('plays', 'day');
 
@@ -94,11 +93,13 @@ class ServerStats
 
         // Los dias sin ninguna play tienen que ir igual, con cero: si se saltean
         // el grafico comprime el hueco y muestra una actividad que no existio.
-        for ($i = static::GRAPH_DAYS; $i >= 0; $i--) {
-            $day = now()->subDays($i)->toDateString();
+        for ($i = 0; $i < static::GRAPH_DAYS; $i++) {
+            $day = $start->copy()->addDays($i)->toDateString();
             $data[] = [
-                'x' => static::GRAPH_DAYS - $i,
-                'y' => (int) ($rows[$day] ?? 0),
+                'date' => $day,
+                'scores' => (int) ($rows[$day] ?? 0),
+                'online' => $online[$day]['online'] ?? null,
+                'online_estimated' => $online[$day]['estimated'] ?? false,
             ];
         }
 

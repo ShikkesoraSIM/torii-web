@@ -17,9 +17,26 @@ return [
         'title' => 'welcome',
         'see_more_news' => 'see more news',
 
+        'hero' => [
+            'welcome' => 'welcome to',
+            'download' => 'Download Torii',
+            'beatmaps' => 'Browse beatmaps',
+            'detail' => 'PP on unranked maps. Ranked rate changes, community maps & most mods.',
+        ],
+
+        'activity' => [
+            'period' => 'last 10 days',
+            'scores' => 'scores/day',
+            'online' => 'online peak/day',
+            'unavailable' => 'online history not recorded yet',
+            'peak' => 'Busiest day, :count scores (:date)',
+            'label' => 'Server activity over the last 10 days',
+            'scales' => 'Scores use the left scale; online players use the right scale.',
+        ],
+
         'slogan' => [
             'main' => 'Welcome to Torii!',
-            'sub' => 'every map, every mod, all of it counts',
+            'sub' => 'Train in the mountains, without limits.',
         ],
 
         // torii: la portada del que llega sin cuenta. Upstream es un video de
