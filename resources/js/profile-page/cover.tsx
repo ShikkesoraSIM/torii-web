@@ -17,6 +17,7 @@ import * as React from 'react';
 import { classWithModifiers, Modifiers, urlPresence } from 'utils/css';
 import { trans } from 'utils/lang';
 import SeasonStats from './season-stats';
+import PlayerProfileSelector from './player-profile-selector';
 
 interface Props {
   coverUrl: string | null;
@@ -79,6 +80,7 @@ export default class Cover extends React.Component<Props> {
             </h1>
 
             {this.renderTitle()}
+            <PlayerProfileSelector key={`${this.props.user.id}:${this.props.currentMode}`} userId={this.props.user.id} mode={this.props.currentMode} />
 
             <div className='profile-info__flags'>
               {this.props.user.country?.code != null &&
