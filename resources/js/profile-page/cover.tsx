@@ -72,6 +72,8 @@ export default class Cover extends React.Component<Props> {
             <h1 className='profile-info__name'>
               <span className='u-ellipsis-pre-overflow'>{this.props.user.username}</span>
 
+              <PlayerProfileSelector key={`${this.props.user.id}:${this.props.currentMode}`} userId={this.props.user.id} mode={this.props.currentMode} />
+
               <div className='profile-info__previous-usernames'>{this.renderPreviousUsernames()}</div>
 
               <div className='profile-info__icons profile-info__icons--name-inline'>
@@ -80,7 +82,6 @@ export default class Cover extends React.Component<Props> {
             </h1>
 
             {this.renderTitle()}
-            <PlayerProfileSelector key={`${this.props.user.id}:${this.props.currentMode}`} userId={this.props.user.id} mode={this.props.currentMode} />
 
             <div className='profile-info__flags'>
               {this.props.user.country?.code != null &&

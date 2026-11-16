@@ -12,12 +12,10 @@ interface ProfilesResponse {
 
 export default function PlayerProfileSelector({ userId, mode }: { userId: number; mode: Ruleset }) {
   const [data, setData] = React.useState<ProfilesResponse>();
-  const [failed, setFailed] = React.useState(false);
-  const [attempt, setAttempt] = React.useState(0);
+
   React.useEffect(() => {
     const controller = new AbortController();
     setData(undefined);
-    setFailed(false);
     const url = new URL(`/api/private/torii/profiles/${userId}`, 'https://lazer-api.shikkesora.com');
     url.searchParams.set('mode', mode);
     void fetch(url, { signal: controller.signal, credentials: 'omit' })
@@ -26,24 +24,21 @@ export default function PlayerProfileSelector({ userId, mode }: { userId: number
         return await response.json() as ProfilesResponse;
       })
       .then(result => { if (!controller.signal.aborted) setData(result); })
-      .catch(() => { if (!controller.signal.aborted) setFailed(true); });
+      .catch(() => {});
     return () => controller.abort();
-  }, [userId, mode, attempt]);
+  }, [userId, mode]);
 
-  if (failed) return <button className='btn-osu-big btn-osu-big--text' onClick={() => setAttempt(attempt + 1)} type='button'>Retry player profiles</button>;
-  if (data == null) return null;
+  if (data == null || data.profiles.length <= 1) return null;
   const selected = data.profiles.some(profile => profile.user_id === userId) ? userId : '';
   return (
     <label className='profile-info__player-profiles'>
       <span className='fas fa-user' aria-hidden />
-      <span>Player profile</span>
       <select
         aria-label='Player profile'
-        disabled={data.profiles.length < 2 && selected !== ''}
         onChange={event => window.location.assign(route('users.show', { user: event.target.value, mode }))}
         value={selected}
       >
-        {selected === '' && <option value='' disabled>Choose a profile for this mode</option>}
+        {selected === '' && <option value='' disabled>Choose profile</option>}
         {data.profiles.map(profile => <option key={profile.user_id} value={profile.user_id}>{profile.name}</option>)}
       </select>
     </label>
