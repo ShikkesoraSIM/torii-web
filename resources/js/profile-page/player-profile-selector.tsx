@@ -18,7 +18,7 @@ export default function PlayerProfileSelector({ userId, mode }: { userId: number
     const controller = new AbortController();
     setData(undefined);
     setFailed(false);
-    const url = new URL(`/api/v2/torii/profiles/${userId}`, 'https://lazer-api.shikkesora.com');
+    const url = new URL(`/api/private/torii/profiles/${userId}`, 'https://lazer-api.shikkesora.com');
     url.searchParams.set('mode', mode);
     void fetch(url, { signal: controller.signal, credentials: 'omit' })
       .then(async response => {
@@ -31,7 +31,7 @@ export default function PlayerProfileSelector({ userId, mode }: { userId: number
   }, [userId, mode, attempt]);
 
   if (failed) return <button className='btn-osu-big btn-osu-big--text' onClick={() => setAttempt(attempt + 1)} type='button'>Retry player profiles</button>;
-  if (data == null || data.profiles.length < 2 && data.master_user_id === userId) return null;
+  if (data == null) return null;
   const selected = data.profiles.some(profile => profile.user_id === userId) ? userId : '';
   return (
     <label className='profile-info__player-profiles'>
@@ -39,6 +39,7 @@ export default function PlayerProfileSelector({ userId, mode }: { userId: number
       <span>Player profile</span>
       <select
         aria-label='Player profile'
+        disabled={data.profiles.length < 2 && selected !== ''}
         onChange={event => window.location.assign(route('users.show', { user: event.target.value, mode }))}
         value={selected}
       >
